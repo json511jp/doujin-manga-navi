@@ -1,0 +1,44 @@
+---
+import { siteConfig } from '../../../site.config.js';
+
+interface Props {
+  active?: 'top' | 'explore' | 'ranking' | 'actress' | 'graph';
+}
+const { active } = Astro.props;
+
+const allItems = [
+  { key: 'top',     href: '/',                 label: 'TOP',      icon: 'home',   show: true },
+  { key: 'explore', href: '/explore',           label: '探す',     icon: 'compass', show: true },
+  { key: 'ranking', href: '/ranking/monthly',   label: 'ランキング', icon: 'chart', show: true },
+  { key: 'actress', href: '/actress',           label: '女優',     icon: 'person', show: siteConfig.features.actresses },
+  { key: 'graph',   href: '/graph',             label: '相関図',   icon: 'graph',  show: siteConfig.features.actresses },
+] as const;
+
+const items = allItems.filter(i => i.show);
+---
+
+<nav style="position:fixed;bottom:0;left:0;right:0;height:60px;background:rgba(10,10,10,0.95);border-top:1px solid #2a2a2a;display:flex;z-index:100;backdrop-filter:blur(8px);">
+  {items.map(item => (
+    <a
+      href={item.href}
+      style={`flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;font-size:10px;color:${active === item.key ? '#d4a843' : '#888'};`}
+    >
+      {item.icon === 'home' && (
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      )}
+      {item.icon === 'compass' && (
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
+      )}
+      {item.icon === 'chart' && (
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      )}
+      {item.icon === 'person' && (
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      )}
+      {item.icon === 'graph' && (
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><line x1="7" y1="6" x2="17" y2="6"/><line x1="5.5" y1="8" x2="11" y2="16"/><line x1="18.5" y1="8" x2="13" y2="16"/></svg>
+      )}
+      {item.label}
+    </a>
+  ))}
+</nav>

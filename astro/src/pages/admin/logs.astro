@@ -1,0 +1,95 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAdminClient } from '../../lib/adminClient';
+
+const client = getAdminClient();
+const page   = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1') || 1);
+const job    = Astro.url.searchParams.get('job') ?? '';
+const PER_PAGE = 30;
+
+let query = client.from('cron_logs').select('*', { count: 'exact' });
+if (job) query = query.eq('job_name', job);
+
+const [{ data: logs, count }, { data: allJobs }] = await Promise.all([
+  query.order('executed_at', { ascending: false }).range((page - 1) * PER_PAGE, page * PER_PAGE - 1),
+  client.from('cron_logs').select('job_name').order('job_name').limit(200),
+]);
+
+const totalPages = Math.ceil((count ?? 0) / PER_PAGE);
+const uniqueJobs = [...new Set((allJobs ?? []).map(r => r.job_name))].sort();
+const successCount = (logs ?? []).filter(l => l.status === 'success').length;
+const errorCount   = (logs ?? []).filter(l => l.status !== 'success').length;
+
+function formatDate(ts: string) {
+  return new Date(ts).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+---
+
+<AdminLayout title="同期ログ" activeNav="logs">
+  <!-- サマリ -->
+  <div class="grid-3" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="stat-label">表示中の総件数</div>
+      <div class="stat-value" style="margin-top:8px;">{(count ?? 0).toLocaleString()}</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">このページの成功</div>
+      <div class="stat-value" style="margin-top:8px;color:var(--admin-success);">{successCount}</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">このページのエラー</div>
+      <div class="stat-value" style="margin-top:8px;color:var(--admin-danger);">{errorCount}</div>
+    </div>
+  </div>
+
+  <!-- フィルター -->
+  <form method="GET" style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
+    <select class="form-select" name="job" style="width:auto;min-width:180px;">
+      <option value="">すべてのジョブ</option>
+      {uniqueJobs.map(j => <option value={j} selected={job === j}>{j}</option>)}
+    </select>
+    <button type="submit" class="btn btn-primary">絞り込み</button>
+    {job && <a href="/admin/logs" class="btn btn-ghost">クリア</a>}
+  </form>
+
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ジョブ名</th>
+          <th style="text-align:center;width:120px;">状態</th>
+          <th>詳細</th>
+          <th style="text-align:right;width:170px;">実行日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(logs ?? []).length === 0 ? (
+          <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--admin-muted);">ログがありません</td></tr>
+        ) : (logs ?? []).map(log => (
+          <tr>
+            <td style="font-weight:500;">{log.job_name}</td>
+            <td style="text-align:center;">
+              {log.status === 'success'
+                ? <span class="badge badge-success">✓ 成功</span>
+                : <span class="badge badge-danger">✗ エラー</span>}
+            </td>
+            <td style="color:var(--admin-text-2);font-size:12px;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Menlo,monospace;">
+              {log.error_message || (log.meta ? JSON.stringify(log.meta) : '—')}
+            </td>
+            <td style="text-align:right;color:var(--admin-text-2);white-space:nowrap;font-variant-numeric:tabular-nums;">
+              {formatDate(log.executed_at!)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {totalPages > 1 && (
+    <div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:24px;">
+      {page > 1 && <a href={`?page=${page-1}&job=${job}`} class="btn btn-ghost">← 前へ</a>}
+      <span style="padding:0 12px;color:var(--admin-text-2);font-size:13px;">{page} / {totalPages}</span>
+      {page < totalPages && <a href={`?page=${page+1}&job=${job}`} class="btn btn-ghost">次へ →</a>}
+    </div>
+  )}
+</AdminLayout>

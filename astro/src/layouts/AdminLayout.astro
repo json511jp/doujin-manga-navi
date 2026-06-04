@@ -1,0 +1,326 @@
+---
+import { siteConfig } from '../../../site.config.js';
+
+interface Props {
+  title: string;
+  activeNav?: string;
+}
+
+const { title, activeNav } = Astro.props;
+const user = Astro.locals.adminUser;
+
+const navItems = [
+  { id: 'dashboard', label: 'ダッシュボード', href: '/admin',
+    icon: '<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>' },
+  { id: 'settings',  label: 'サイト設定',     href: '/admin/settings',
+    icon: '<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4.5l2.1 1.6-2 3.5-2.4-1a8 8 0 0 1-2 1.1l-.4 2.5h-4l-.4-2.5a8 8 0 0 1-2-1.1l-2.4 1-2-3.5 2.1-1.6a8 8 0 0 1 0-2l-2.1-1.6 2-3.5 2.4 1a8 8 0 0 1 2-1.1L9.6 3h4l.4 2.5a8 8 0 0 1 2 1.1l2.4-1 2 3.5-2.1 1.6a8 8 0 0 1 0 2z"/>' },
+  { id: 'themes',    label: 'テーマ',           href: '/admin/themes',
+    icon: '<path d="M12 2a10 10 0 1 0 0 20c1 0 1.5-.5 1.5-1.2 0-.3-.1-.6-.3-.8-.2-.3-.3-.5-.3-.8 0-.7.5-1.2 1.2-1.2H16a5 5 0 0 0 5-5c0-5-4-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>' },
+  { id: 'products',  label: '商品管理',         href: '/admin/products',
+    icon: '<path d="M21 7l-9-4-9 4v10l9 4 9-4V7zM12 5.2L18.5 8 12 10.8 5.5 8 12 5.2zM4 9.5l7 3v8l-7-3v-8zm9 11v-8l7-3v8l-7 3z"/>' },
+  { id: 'moods',     label: 'ムード管理',       href: '/admin/moods',
+    icon: '<path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z"/>' },
+  { id: 'logs',      label: '同期ログ',         href: '/admin/logs',
+    icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>' },
+];
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>{title} — {siteConfig.siteName} Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      /* zinc-based neutrals for depth */
+      --admin-bg:        #09090b;
+      --admin-sidebar:   #0d0d10;
+      --admin-surface:   #131316;
+      --admin-surface-2: #1a1a1f;
+      --admin-border:    #27272a;
+      --admin-border-2:  #3f3f46;
+      --admin-text:      #fafafa;
+      --admin-text-2:    #a1a1aa;
+      --admin-muted:     #71717a;
+      --admin-accent:    #d4a843;
+      --admin-accent-soft: rgba(212, 168, 67, 0.12);
+      --admin-danger:    #ef4444;
+      --admin-danger-soft: rgba(239, 68, 68, 0.12);
+      --admin-success:   #10b981;
+      --admin-success-soft: rgba(16, 185, 129, 0.12);
+      --admin-info:      #3b82f6;
+      --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.4);
+      --shadow:    0 4px 12px -2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--admin-bg); color: var(--admin-text);
+      font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+      font-feature-settings: 'cv11', 'ss01';
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh; display: flex;
+      font-size: 14px; line-height: 1.5;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px; min-height: 100dvh; background: var(--admin-sidebar);
+      border-right: 1px solid var(--admin-border); display: flex; flex-direction: column;
+      position: sticky; top: 0; align-self: flex-start; height: 100dvh;
+    }
+    .sidebar-header { padding: 22px 20px; }
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; font-weight: 700; color: var(--admin-text);
+    }
+    .sidebar-brand-mark {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: linear-gradient(135deg, var(--admin-accent), #b58a2e);
+      display: flex; align-items: center; justify-content: center;
+      color: #000; font-weight: 800; font-size: 13px;
+      box-shadow: 0 2px 8px -2px rgba(212,168,67,0.5);
+    }
+    .sidebar-site {
+      font-size: 11px; color: var(--admin-muted); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      letter-spacing: 0.02em;
+    }
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 600; color: var(--admin-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 0 20px; margin: 16px 0 6px;
+    }
+    .sidebar-nav { flex: 1; padding: 0 10px; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; margin: 2px 0;
+      font-size: 13px; font-weight: 500;
+      color: var(--admin-text-2); text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.15s ease;
+    }
+    .nav-item:hover { background: var(--admin-surface); color: var(--admin-text); }
+    .nav-item.active {
+      background: var(--admin-accent-soft); color: var(--admin-accent);
+      box-shadow: inset 0 0 0 1px rgba(212,168,67,0.18);
+    }
+    .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-icon svg { width: 100%; height: 100%; fill: currentColor; }
+    .sidebar-footer { padding: 14px; border-top: 1px solid var(--admin-border); }
+    .user-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px; border-radius: 8px;
+      background: var(--admin-surface);
+    }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #3f3f46, #18181b);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--admin-text); font-size: 13px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-email { font-size: 12px; color: var(--admin-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-role { font-size: 10px; color: var(--admin-muted); margin-top: 1px; }
+    .logout-btn {
+      width: 32px; height: 32px; padding: 0; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--admin-border);
+      color: var(--admin-text-2); border-radius: 8px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .logout-btn:hover { background: var(--admin-danger-soft); border-color: var(--admin-danger); color: var(--admin-danger); }
+    .logout-btn svg { width: 14px; height: 14px; fill: currentColor; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--admin-border);
+      background: var(--admin-bg);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+    .page-title { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+    .page-content { padding: 28px 32px; flex: 1; max-width: 1400px; width: 100%; }
+
+    /* Components */
+    .card {
+      background: var(--admin-surface); border: 1px solid var(--admin-border);
+      border-radius: 12px; padding: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .card + .card { margin-top: 16px; }
+    .card-title {
+      font-size: 12px; font-weight: 600; color: var(--admin-text-2);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--admin-text); letter-spacing: -0.02em; }
+    .stat-label { font-size: 12px; color: var(--admin-text-2); margin-top: 4px; }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block; font-size: 12px; font-weight: 500;
+      color: var(--admin-text-2); margin-bottom: 6px;
+    }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 9px 12px;
+      background: var(--admin-bg);
+      border: 1px solid var(--admin-border); border-radius: 8px;
+      color: var(--admin-text);
+      font-size: 13px; font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: var(--admin-accent);
+      box-shadow: 0 0 0 3px var(--admin-accent-soft);
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid transparent;
+      font-family: inherit; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary {
+      background: var(--admin-accent); color: #000; font-weight: 600;
+      box-shadow: 0 2px 8px -2px rgba(212,168,67,0.4);
+    }
+    .btn-primary:hover { background: #e0b54f; box-shadow: 0 4px 12px -2px rgba(212,168,67,0.5); }
+    .btn-danger { background: var(--admin-danger); color: #fff; }
+    .btn-ghost {
+      background: transparent; border-color: var(--admin-border);
+      color: var(--admin-text-2);
+    }
+    .btn-ghost:hover { background: var(--admin-surface); color: var(--admin-text); border-color: var(--admin-border-2); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: 500;
+      background: var(--admin-surface-2); color: var(--admin-text-2);
+    }
+    .badge-success { background: var(--admin-success-soft); color: var(--admin-success); }
+    .badge-danger  { background: var(--admin-danger-soft);  color: var(--admin-danger);  }
+    .badge-accent  { background: var(--admin-accent-soft);  color: var(--admin-accent);  }
+
+    /* Table */
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td {
+      padding: 12px 14px; text-align: left; font-size: 13px;
+      border-bottom: 1px solid var(--admin-border);
+    }
+    .table th {
+      font-weight: 500; color: var(--admin-text-2); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      background: var(--admin-surface-2);
+    }
+    .table tr:hover td { background: var(--admin-surface-2); }
+    .table tr:last-child td { border-bottom: none; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 12px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 500;
+      background: var(--admin-surface); color: var(--admin-text);
+      border: 1px solid var(--admin-border);
+      box-shadow: var(--shadow);
+      transform: translateY(20px); opacity: 0;
+      transition: all 0.25s ease;
+      pointer-events: none; z-index: 9999;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--admin-success); color: var(--admin-success); }
+    #toast.error   { border-color: var(--admin-danger);  color: var(--admin-danger);  }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 64px; }
+      .sidebar-brand-text, .sidebar-site, .nav-item span:not(.nav-icon), .user-info, .sidebar-section-label { display: none; }
+      .sidebar-header { padding: 18px 16px; justify-content: center; }
+      .nav-item { justify-content: center; padding: 10px 0; }
+      .user-card { padding: 6px; justify-content: center; }
+      .topbar { padding: 16px 20px; }
+      .page-content { padding: 20px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-mark">{siteConfig.siteName?.charAt(0) ?? 'A'}</div>
+        <div class="sidebar-brand-text">
+          <div>{siteConfig.siteName}</div>
+          <div class="sidebar-site">Admin Console</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section-label">Menu</div>
+    <nav class="sidebar-nav">
+      {navItems.map(item => (
+        <a href={item.href} class={`nav-item${activeNav === item.id ? ' active' : ''}`}>
+          <span class="nav-icon"><svg viewBox="0 0 24 24" set:html={item.icon} /></span>
+          <span>{item.label}</span>
+        </a>
+      ))}
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar">{user?.email?.charAt(0).toUpperCase() ?? '?'}</div>
+        <div class="user-info">
+          <div class="user-email">{user?.email}</div>
+          <div class="user-role">管理者</div>
+        </div>
+        <form method="POST" action="/admin/auth/logout" style="margin:0;">
+          <button type="submit" class="logout-btn" title="ログアウト" aria-label="ログアウト">
+            <svg viewBox="0 0 24 24"><path d="M16 17l5-5-5-5v3H9v4h7v3zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4V5z"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 class="page-title">{title}</h1>
+    </div>
+    <div class="page-content">
+      <slot />
+    </div>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    // トースト通知
+    (window as any).showToast = function(message: string, type: 'success' | 'error' = 'success') {
+      const el = document.getElementById('toast');
+      if (!el) return;
+      el.textContent = message;
+      el.className = `show ${type}`;
+      setTimeout(() => { el.className = ''; }, 3000);
+    };
+
+    // URLパラメータからトースト表示
+    const params = new URLSearchParams(location.search);
+    if (params.get('saved')) (window as any).showToast('保存しました');
+    if (params.get('error')) (window as any).showToast('エラーが発生しました', 'error');
+  </script>
+</body>
+</html>

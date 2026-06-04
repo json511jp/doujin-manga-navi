@@ -1,0 +1,50 @@
+---
+// Implicit flow: access_token / refresh_token は URL ハッシュに乗る（SSRでは読めない）
+// クライアントサイド JS でハッシュを解析し、/api/admin/set-session へ POST してcookieをセット
+const errorParam = Astro.url.searchParams.get('error');
+const errorDesc = Astro.url.searchParams.get('error_description');
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>ログイン処理中...</title>
+  <style>
+    body { background: #0d0d0d; color: #e0e0e0; font-family: system-ui, sans-serif;
+           min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
+    p { font-size: 14px; color: #888; }
+  </style>
+</head>
+<body>
+  <p>ログイン処理中...</p>
+  <script define:vars={{ errorParam, errorDesc }}>
+    if (errorParam) {
+      window.location.href = '/admin/login?error=' + encodeURIComponent(errorDesc ?? 'ログインに失敗しました');
+    } else {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken  = params.get('access_token');
+      const refreshToken = params.get('refresh_token') ?? '';
+      const hashError    = params.get('error');
+      const hashErrorDesc = params.get('error_description');
+
+      if (hashError) {
+        window.location.href = '/admin/login?error=' + encodeURIComponent(hashErrorDesc ?? 'ログインに失敗しました');
+      } else if (accessToken) {
+        fetch('/api/admin/set-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+        })
+          .then(r => r.ok ? window.location.href = '/admin' : Promise.reject())
+          .catch(() => {
+            window.location.href = '/admin/login?error=' + encodeURIComponent('セッションの保存に失敗しました');
+          });
+      } else {
+        window.location.href = '/admin/login';
+      }
+    }
+  </script>
+</body>
+</html>

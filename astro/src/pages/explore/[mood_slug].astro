@@ -1,0 +1,162 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import VideoModal from '../../components/VideoModal.astro';
+import { supabase } from '../../lib/supabase';
+import { siteConfig } from '../../../../site.config.js';
+
+const { mood_slug } = Astro.params;
+
+const { data: mood } = await supabase
+  .from('moods')
+  .select('*')
+  .eq('slug', mood_slug!)
+  .single();
+
+if (!mood) return Astro.redirect('/');
+type MoodRow = { id: string; name: string; slug: string; description: string | null; genre_ids: string[] };
+const m = mood as unknown as MoodRow;
+
+// ムードのジャンルIDに対応する作品をレビュー順で取得
+let products: any[] = [];
+
+if (m.genre_ids && m.genre_ids.length > 0) {
+  const { data: genreRows } = await supabase
+    .from('genres')
+    .select('id')
+    .in('dmm_genre_id', m.genre_ids);
+
+  const genreIds = (genreRows ?? []).map((g: any) => g.id);
+
+  if (genreIds.length > 0) {
+    const { data: rows } = await supabase
+      .from('product_genres')
+      .select(`products (
+        id, dmm_content_id, title, description,
+        image_url_large, image_url_small, sample_images_l, sample_movie_url,
+        review_average, review_count, price_min, price_text, volume,
+        product_actresses ( actresses ( name ) ),
+        product_genres ( genres ( name ) )
+      )`)
+      .in('genre_id', genreIds)
+      .limit(1000);
+
+    products = [...new Map(
+      ((rows ?? []) as any[]).map((r: any) => r.products).filter(Boolean).map((p: any) => [p.id, p])
+    ).values()]
+      .sort((a: any, b: any) => (Number(b.review_average) || 0) - (Number(a.review_average) || 0));
+  }
+} else {
+  // 新作ムードは発売日順
+  const { data } = await supabase
+    .from('products')
+    .select(`id, dmm_content_id, title, description, image_url_large, image_url_small, sample_images_l, sample_movie_url, review_average, review_count, price_min, price_text, volume,
+      product_actresses ( actresses ( name ) ),
+      product_genres ( genres ( name ) )`)
+    .eq('is_active', true)
+    .order('release_date', { ascending: false })
+    .limit(500);
+  products = (data ?? []) as any[];
+}
+---
+
+<BaseLayout
+  title={`${m.name} — 没入型スクロール | ${siteConfig.siteName}`}
+  description={m.description ?? `${m.name}の動画をスクロールで探す。`}
+  noindex={true}
+>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .scroll-container { height: 100dvh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+    .scroll-container::-webkit-scrollbar { display: none; }
+    .slide { height: 100dvh; scroll-snap-align: start; position: relative; overflow: hidden; }
+    .slide-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #0d1b2a, #1a0a2e); }
+    .slide-bg img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.45); }
+    .slide-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 45%, transparent 70%); }
+    .slide-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 24px 20px 84px; }
+    .tag { background: rgba(212,168,67,0.15); border: 1px solid rgba(212,168,67,0.4); color: #d4a843; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px; }
+    .btn-fanza { flex: 2; background: #d4a843; border: none; color: #000; font-size: 14px; font-weight: 700; padding: 14px; border-radius: 10px; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+    .btn-sample { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #f0f0f0; font-size: 14px; font-weight: 600; padding: 14px; border-radius: 10px; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+    .progress-track { width: 120px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #d4a843; border-radius: 2px; transition: width 0.3s; }
+    .dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.3); }
+    .dot.active { background: #d4a843; height: 16px; border-radius: 2px; }
+  </style>
+
+  <!-- Back + Mood label -->
+  <a href="/" style="position:fixed;top:16px;left:16px;z-index:10;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;color:#f0f0f0;font-size:13px;text-decoration:none;backdrop-filter:blur(4px);">← 戻る</a>
+  <div style="position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,0.5);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:6px 16px;color:#d4a843;font-size:13px;font-weight:600;backdrop-filter:blur(4px);white-space:nowrap;">{m.name}</div>
+
+  <div class="scroll-container" id="scrollContainer">
+    {products.map((p: any) => {
+      const price = p.price_text ?? (p.price_min ? `¥${p.price_min.toLocaleString()}〜` : null);
+      const actressName = p.product_actresses?.[0]?.actresses?.name ?? null;
+      const tags: string[] = (p.product_genres ?? []).slice(0, 3).map((r: any) => r.genres?.name).filter(Boolean);
+      const stars = p.review_average ? Number(p.review_average).toFixed(1) : null;
+      const sampleImg: string | null = p.sample_images_l ? ([p.sample_images_l].flat(2)[0] ?? null) : null;
+      const bgImg: string | null = sampleImg ?? p.image_url_large ?? p.image_url_small ?? null;
+      const isFirst = products.indexOf(p) === 0;
+      return (
+        <div class="slide">
+          <div class="slide-bg">
+            {bgImg && <img src={bgImg} alt={p.title} loading={isFirst ? 'eager' : 'lazy'} fetchpriority={isFirst ? 'high' : 'auto'} />}
+          </div>
+          <div class="slide-overlay"></div>
+          <div class="slide-content">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+              {tags.map((t: string) => <span class="tag">{t}</span>)}
+            </div>
+            <div style="font-size:18px;font-weight:700;color:#f0f0f0;line-height:1.5;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{p.title}</div>
+            {actressName && <div style="color:#888;font-size:13px;margin-bottom:12px;">{actressName}</div>}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+              {stars && <span style="color:#d4a843;font-size:14px;font-weight:600;">★ {stars}</span>}
+              {price && <span style="color:#f0f0f0;font-size:14px;font-weight:600;">{price}</span>}
+              {p.volume && <span style="color:#888;font-size:13px;">{p.volume}分</span>}
+            </div>
+            <div style="display:flex;gap:10px;">
+              {p.sample_movie_url && (
+                <button class="btn-sample" onclick={`openVideoModal(${JSON.stringify(p.sample_movie_url)})`}>▶ サンプル</button>
+              )}
+              <a href={`/item/${p.dmm_content_id}`} class="btn-fanza">詳細を見る →</a>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <!-- Progress bar -->
+  <div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;z-index:10;">
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style={`width:${products.length > 0 ? Math.round(100 / products.length) : 100}%`}></div></div>
+    <span style="color:rgba(255,255,255,0.5);font-size:12px;" id="progressLabel">1 / {products.length}</span>
+  </div>
+
+  <!-- Side dots -->
+  <div style="position:fixed;top:50%;right:12px;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:10;" id="dotContainer">
+    {products.slice(0, 10).map((_: any, i: number) => (
+      <div class={`dot${i === 0 ? ' active' : ''}`} id={`dot${i}`}></div>
+    ))}
+  </div>
+
+  <script define:vars={{ totalCount: products.length }}>
+    const container = document.getElementById('scrollContainer');
+    const slides = container?.querySelectorAll('.slide') ?? [];
+    const progressFill = document.getElementById('progressFill');
+    const progressLabel = document.getElementById('progressLabel');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const idx = Array.from(slides).indexOf(entry.target);
+        document.querySelectorAll('[id^="dot"]').forEach((d, i) => {
+          d.className = i === idx ? 'dot active' : 'dot';
+        });
+        if (progressFill) progressFill.style.width = `${Math.round(((idx + 1) / totalCount) * 100)}%`;
+        if (progressLabel) progressLabel.textContent = `${idx + 1} / ${totalCount}`;
+      });
+    }, { threshold: 0.6 });
+
+    slides.forEach(s => observer.observe(s));
+  </script>
+
+  <VideoModal />
+</BaseLayout>

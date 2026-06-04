@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+:root {
+  --bg-base: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-surface-hover: #1a1a1a;
+  --border: #2a2a2a;
+  --accent: #d4a843;
+  --accent-light: #f0c060;
+  --text-primary: #f0f0f0;
+  --text-secondary: #888888;
+  --danger: #e05252;
+}
+
+html {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Noto Sans JP', sans-serif;
+}
+
+.snap-scroll::-webkit-scrollbar { display: none; }
+.snap-scroll { scrollbar-width: none; }

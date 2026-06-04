@@ -1,0 +1,41 @@
+<!-- Video modal overlay — controlled by openVideoModal(url) / closeVideoModal() -->
+<div id="video-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;">
+  <div style="position:relative;">
+    <button
+      id="video-modal-close"
+      aria-label="閉じる"
+      style="position:absolute;top:-48px;right:0;background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:24px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;"
+    >✕</button>
+    <iframe
+      id="video-modal-player"
+      src=""
+      allowfullscreen
+      style="display:block;width:min(96vw,720px);aspect-ratio:3/2;border:none;border-radius:8px;background:#000;"
+    ></iframe>
+  </div>
+</div>
+
+<script>
+  const modal  = document.getElementById('video-modal') as HTMLDivElement;
+  const player = document.getElementById('video-modal-player') as HTMLIFrameElement;
+  const closeBtn = document.getElementById('video-modal-close')!;
+
+  function openVideoModal(url: string) {
+    player.src = url;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeVideoModal() {
+    player.src = '';
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  closeBtn.addEventListener('click', closeVideoModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeVideoModal(); });
+
+  (window as any).openVideoModal = openVideoModal;
+  (window as any).closeVideoModal = closeVideoModal;
+</script>

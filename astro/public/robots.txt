@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /explore/
+Disallow: /graph
+Disallow: /api/
+
+Sitemap: https://ntr-douga.com/sitemap.xml

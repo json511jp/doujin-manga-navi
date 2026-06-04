@@ -1,0 +1,109 @@
+---
+interface Props {
+  targetType: 'product' | 'actress';
+  targetId: string;
+  initialCount: number;
+}
+const { targetType, targetId, initialCount } = Astro.props;
+const btnId = `like-btn-${targetId}`;
+---
+
+<style>
+  @keyframes like-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.5); }
+    70%  { transform: scale(0.9); }
+    100% { transform: scale(1); }
+  }
+  @keyframes like-float {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(0.6); }
+  }
+  .like-pop { animation: like-pop 0.4s cubic-bezier(.36,.07,.19,.97); }
+</style>
+
+<div style="position:relative;display:inline-block;">
+  <button
+    id={btnId}
+    data-type={targetType}
+    data-id={targetId}
+    style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid #2a2a2a;color:#888;font-size:14px;font-weight:600;padding:10px 20px;border-radius:10px;cursor:pointer;font-family:inherit;transition:border-color 0.2s,color 0.2s,background 0.2s;"
+  >
+    <span class="like-heart" style="font-size:18px;display:inline-block;">🤍</span>
+    <span class="like-count">{initialCount > 0 ? initialCount.toLocaleString() : ''}</span>
+  </button>
+</div>
+
+<script define:vars={{ btnId, targetType, targetId }}>
+  function getVisitorId() {
+    let id = localStorage.getItem('ntr_visitor_id');
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem('ntr_visitor_id', id);
+    }
+    return id;
+  }
+
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+
+  const heart = btn.querySelector('.like-heart');
+  const countEl = btn.querySelector('.like-count');
+  const wrapper = btn.parentElement;
+
+  const likedKey = `liked_${targetType}_${targetId}`;
+
+  function setLiked(liked) {
+    if (heart) heart.textContent = liked ? '❤️' : '🤍';
+    btn.style.borderColor = liked ? 'rgba(212,168,67,0.5)' : '#2a2a2a';
+    btn.style.color = liked ? '#d4a843' : '#888';
+    btn.style.background = liked ? 'rgba(212,168,67,0.08)' : 'rgba(255,255,255,0.05)';
+    if (liked) localStorage.setItem(likedKey, '1');
+    else localStorage.removeItem(likedKey);
+  }
+
+  function popHeart() {
+    if (!heart) return;
+    heart.classList.remove('like-pop');
+    void heart.offsetWidth; // reflow
+    heart.classList.add('like-pop');
+    heart.addEventListener('animationend', () => heart.classList.remove('like-pop'), { once: true });
+  }
+
+  function floatParticles() {
+    if (!wrapper) return;
+    for (let i = 0; i < 5; i++) {
+      const p = document.createElement('span');
+      p.textContent = '❤️';
+      p.style.cssText = `position:absolute;font-size:${12 + Math.random() * 10}px;pointer-events:none;left:${20 + Math.random() * 60}%;top:0;animation:like-float ${0.6 + Math.random() * 0.4}s ease-out forwards;animation-delay:${i * 60}ms;`;
+      wrapper.appendChild(p);
+      p.addEventListener('animationend', () => p.remove());
+    }
+  }
+
+  setLiked(!!localStorage.getItem(likedKey));
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    popHeart();
+    try {
+      const res = await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_type: targetType,
+          target_id: targetId,
+          visitor_id: getVisitorId(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLiked(data.liked);
+        if (data.liked) floatParticles();
+        if (countEl) countEl.textContent = data.count > 0 ? data.count.toLocaleString() : '';
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>

@@ -1,0 +1,99 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAdminClient } from '../../lib/adminClient';
+
+const client = getAdminClient();
+
+const [productsRes, actressesRes, logsRes, featuredRes] = await Promise.all([
+  client.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
+  client.from('actresses').select('id', { count: 'exact', head: true }),
+  client.from('cron_logs').select('job_name,status,executed_at').order('executed_at', { ascending: false }).limit(5),
+  client.from('products').select('id', { count: 'exact', head: true }).eq('is_featured', true),
+]);
+
+const stats = {
+  products:  productsRes.count  ?? 0,
+  actresses: actressesRes.count ?? 0,
+  featured:  featuredRes.count  ?? 0,
+};
+
+const logs = logsRes.data ?? [];
+
+function timeAgo(ts: string) {
+  const diff = Date.now() - new Date(ts).getTime();
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 24) return `${Math.floor(h / 24)}日前`;
+  if (h > 0)  return `${h}時間前`;
+  return `${m}分前`;
+}
+
+const quickLinks = [
+  { href: '/admin/settings', label: 'サイト設定', desc: 'サイト名・URL・SEO',
+    icon: '<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4.5l2.1 1.6-2 3.5-2.4-1a8 8 0 0 1-2 1.1l-.4 2.5h-4l-.4-2.5a8 8 0 0 1-2-1.1l-2.4 1-2-3.5 2.1-1.6a8 8 0 0 1 0-2l-2.1-1.6 2-3.5 2.4 1a8 8 0 0 1 2-1.1L9.6 3h4l.4 2.5a8 8 0 0 1 2 1.1l2.4-1 2 3.5-2.1 1.6a8 8 0 0 1 0 2z"/>' },
+  { href: '/admin/themes',   label: 'テーマ',     desc: 'カラー・デザイン',
+    icon: '<path d="M12 2a10 10 0 1 0 0 20c1 0 1.5-.5 1.5-1.2 0-.3-.1-.6-.3-.8-.2-.3-.3-.5-.3-.8 0-.7.5-1.2 1.2-1.2H16a5 5 0 0 0 5-5c0-5-4-9-9-9z"/>' },
+  { href: '/admin/products', label: '商品管理',   desc: '公開・ピックアップ',
+    icon: '<path d="M21 7l-9-4-9 4v10l9 4 9-4V7zM12 5.2L18.5 8 12 10.8 5.5 8 12 5.2z"/>' },
+  { href: '/admin/moods',    label: 'ムード管理', desc: 'TOPページのボタン',
+    icon: '<path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z"/>' },
+];
+---
+
+<AdminLayout title="ダッシュボード" activeNav="dashboard">
+  <div class="grid-3" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="stat-label">公開中の商品</div>
+      <div class="stat-value" style="margin-top:8px;">{stats.products.toLocaleString()}</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">登録女優数</div>
+      <div class="stat-value" style="margin-top:8px;">{stats.actresses.toLocaleString()}</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">ピックアップ</div>
+      <div class="stat-value" style="margin-top:8px;color:var(--admin-accent);">{stats.featured.toLocaleString()}</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">クイックアクション</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        {quickLinks.map(link => (
+          <a href={link.href} style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;background:var(--admin-surface-2);border:1px solid var(--admin-border);text-decoration:none;color:inherit;transition:all 0.15s;">
+            <div style="width:36px;height:36px;border-radius:8px;background:var(--admin-accent-soft);color:var(--admin-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" set:html={link.icon} />
+            </div>
+            <div style="min-width:0;">
+              <div style="font-size:13px;font-weight:600;color:var(--admin-text);">{link.label}</div>
+              <div style="font-size:11px;color:var(--admin-text-2);margin-top:2px;">{link.desc}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="card-title" style="margin:0;">最近の同期ログ</div>
+        <a href="/admin/logs" style="font-size:12px;color:var(--admin-accent);text-decoration:none;">すべて見る →</a>
+      </div>
+      {logs.length === 0 ? (
+        <p style="color:var(--admin-muted);font-size:13px;padding:20px 0;text-align:center;">ログがありません</p>
+      ) : (
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          {logs.map(log => (
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;background:var(--admin-surface-2);">
+              <span class={`badge ${log.status === 'success' ? 'badge-success' : 'badge-danger'}`}>
+                {log.status === 'success' ? '✓' : '✗'}
+              </span>
+              <span style="flex:1;font-size:13px;color:var(--admin-text);font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{log.job_name}</span>
+              <span style="font-size:11px;color:var(--admin-text-2);">{timeAgo(log.executed_at!)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</AdminLayout>

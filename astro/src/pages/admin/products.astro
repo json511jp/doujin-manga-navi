@@ -1,0 +1,152 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAdminClient } from '../../lib/adminClient';
+
+const client = getAdminClient();
+const page   = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1') || 1);
+const search = Astro.url.searchParams.get('q') ?? '';
+const filter = Astro.url.searchParams.get('filter') ?? 'all';
+const PER_PAGE = 20;
+
+let query = client.from('products')
+  .select('id,dmm_content_id,title,image_url_small,release_date,is_active,is_featured,review_average', { count: 'exact' });
+
+if (search) query = query.ilike('title', `%${search}%`);
+if (filter === 'active')   query = query.eq('is_active', true);
+if (filter === 'inactive') query = query.eq('is_active', false);
+if (filter === 'featured') query = query.eq('is_featured', true);
+
+const { data: products, count } = await query
+  .order('release_date', { ascending: false })
+  .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
+
+const totalPages = Math.ceil((count ?? 0) / PER_PAGE);
+---
+
+<AdminLayout title="商品管理" activeNav="products">
+  <!-- 検索・フィルター -->
+  <form method="GET" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+    <div style="position:relative;flex:1;min-width:240px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--admin-muted);">
+        <path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/>
+      </svg>
+      <input class="form-input" name="q" value={search} placeholder="タイトルで検索..." style="padding-left:36px;" />
+    </div>
+    <select class="form-select" name="filter" style="width:auto;min-width:140px;">
+      <option value="all"      selected={filter==='all'}>すべて</option>
+      <option value="active"   selected={filter==='active'}>公開中</option>
+      <option value="inactive" selected={filter==='inactive'}>非公開</option>
+      <option value="featured" selected={filter==='featured'}>ピックアップ</option>
+    </select>
+    <button type="submit" class="btn btn-primary">検索</button>
+  </form>
+
+  <p style="font-size:12px;color:var(--admin-text-2);margin-bottom:14px;">
+    全 <strong style="color:var(--admin-text);">{count?.toLocaleString() ?? 0}</strong> 件 ・ ページ <strong style="color:var(--admin-text);">{page} / {Math.max(1,totalPages)}</strong>
+  </p>
+
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>商品</th>
+          <th style="text-align:center;width:90px;">公開</th>
+          <th style="text-align:center;width:90px;">ピックアップ</th>
+          <th style="text-align:right;width:80px;">評価</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(products ?? []).map(p => (
+          <tr class="product-row" data-id={p.id}>
+            <td>
+              <div style="display:flex;align-items:center;gap:12px;">
+                {p.image_url_small ? (
+                  <img src={p.image_url_small} alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;background:var(--admin-surface-2);" loading="lazy" />
+                ) : (
+                  <div style="width:44px;height:44px;border-radius:6px;background:var(--admin-surface-2);flex-shrink:0;"></div>
+                )}
+                <span style="line-height:1.4;max-width:480px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{p.title}</span>
+              </div>
+            </td>
+            <td style="text-align:center;">
+              <button
+                class="toggle-btn icon-btn"
+                data-id={p.id}
+                data-field="is_active"
+                data-value={String(p.is_active)}
+                data-active={String(p.is_active)}
+                title={p.is_active ? '公開中（クリックで非公開）' : '非公開（クリックで公開）'}
+                aria-label="公開トグル"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button
+                class="toggle-btn icon-btn"
+                data-id={p.id}
+                data-field="is_featured"
+                data-value={String(p.is_featured)}
+                data-active={String(p.is_featured)}
+                title={p.is_featured ? 'ピックアップ中' : 'ピックアップに追加'}
+                aria-label="ピックアップトグル"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 17.3L18.2 21l-1.6-7.1L22 9.2l-7.3-.6L12 2 9.3 8.6 2 9.2l5.4 4.7L5.8 21z"/></svg>
+              </button>
+            </td>
+            <td style="text-align:right;">
+              {p.review_average ? (
+                <span style="color:var(--admin-accent);font-weight:600;">★ {Number(p.review_average).toFixed(1)}</span>
+              ) : (
+                <span style="color:var(--admin-muted);">—</span>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {totalPages > 1 && (
+    <div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:24px;">
+      {page > 1 && <a href={`?page=${page-1}&q=${search}&filter=${filter}`} class="btn btn-ghost">← 前へ</a>}
+      <span style="padding:0 12px;color:var(--admin-text-2);font-size:13px;">{page} / {totalPages}</span>
+      {page < totalPages && <a href={`?page=${page+1}&q=${search}&filter=${filter}`} class="btn btn-ghost">次へ →</a>}
+    </div>
+  )}
+</AdminLayout>
+
+<style>
+  .icon-btn {
+    width: 36px; height: 36px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--admin-surface-2); border: 1px solid var(--admin-border);
+    border-radius: 8px; cursor: pointer;
+    color: var(--admin-muted);
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--admin-border-2); color: var(--admin-text); }
+  .icon-btn[data-active="true"] { color: var(--admin-accent); border-color: rgba(212,168,67,0.3); background: var(--admin-accent-soft); }
+</style>
+
+<script>
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id    = btn.dataset.id;
+      const field = btn.dataset.field;
+      const value = btn.dataset.value === 'true';
+      const res = await fetch('/api/admin/product-toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, field, value: !value }),
+      });
+      if (res.ok) {
+        btn.dataset.value = String(!value);
+        btn.dataset.active = String(!value);
+        (window as any).showToast?.('更新しました');
+      } else {
+        (window as any).showToast?.('エラーが発生しました', 'error');
+      }
+    });
+  });
+</script>

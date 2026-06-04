@@ -1,0 +1,93 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import BottomNav from '../../components/BottomNav.astro';
+import { supabase } from '../../lib/supabase';
+import { siteConfig } from '../../../../site.config.js';
+
+const { data: moodsRaw } = await supabase
+  .from('moods')
+  .select('id, name, slug, description')
+  .limit(20);
+
+type MoodRow = { id: string; name: string; slug: string; description: string | null };
+const moods = (moodsRaw ?? []) as unknown as MoodRow[];
+
+const moodEmoji: Record<string, string> = {
+  haitoku:  '🌑',
+  ochiru:   '🔥',
+  jukujo:   '🌙',
+  shinsaku: '✨',
+};
+
+const moodGradient: Record<string, string> = {
+  haitoku:  'linear-gradient(135deg, #1a0a2e, #0d1b2a)',
+  ochiru:   'linear-gradient(135deg, #2a0a0a, #1a1a0a)',
+  jukujo:   'linear-gradient(135deg, #0a1a2a, #0a0a1a)',
+  shinsaku: 'linear-gradient(135deg, #0a2a1a, #0a1a2a)',
+};
+---
+
+<BaseLayout
+  title={`気分で探す — 没入型スクロール | ${siteConfig.siteName}`}
+  description={`今の気分に合った動画をフルスクリーンスクロールで探す。ムードを選んでお気に入りの作品を見つけよう。`}
+  noindex={true}
+>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; }
+    .mood-card {
+      display: block;
+      text-decoration: none;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      height: 160px;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .mood-card:active { transform: scale(0.97); }
+    .mood-card-bg { position: absolute; inset: 0; }
+    .mood-card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%); }
+    .mood-card-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; }
+    .mood-emoji { font-size: 28px; margin-bottom: 4px; }
+    .mood-name { font-size: 18px; font-weight: 700; color: #f0f0f0; margin-bottom: 4px; }
+    .mood-desc { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.4; }
+    .arrow { position: absolute; top: 50%; right: 16px; transform: translateY(-50%); color: rgba(255,255,255,0.4); font-size: 20px; }
+  </style>
+
+  <Header />
+
+  <main style="max-width:600px;margin:0 auto;padding:16px 16px 100px;">
+    <div style="margin-bottom:24px;">
+      <h1 style="font-size:22px;font-weight:700;margin-bottom:6px;">気分で探す</h1>
+      <p style="font-size:13px;color:#888;">今の気分に合ったムードを選んでください。フルスクリーンで作品をスクロールできます。</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      {moods.map(mood => (
+        <a href={`/explore/${mood.slug}`} class="mood-card">
+          <div class="mood-card-bg" style={`background: ${moodGradient[mood.slug] ?? 'linear-gradient(135deg, #111, #1a1a2a)'};`}></div>
+          <div class="mood-card-overlay"></div>
+          <div class="mood-card-content">
+            <div class="mood-emoji">{moodEmoji[mood.slug] ?? '🎬'}</div>
+            <div class="mood-name">{mood.name}</div>
+            {mood.description && <div class="mood-desc">{mood.description}</div>}
+          </div>
+          <div class="arrow">›</div>
+        </a>
+      ))}
+    </div>
+
+    <div style="margin-top:32px;padding:16px;background:#111;border:1px solid #2a2a2a;border-radius:12px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#d4a843;">使い方</div>
+      <ul style="font-size:12px;color:#888;line-height:1.8;padding-left:16px;">
+        <li>ムードを選ぶと縦スクロール画面に切り替わります</li>
+        <li>上下にスワイプして作品を探せます</li>
+        <li>「詳細を見る」で作品ページへ移動します</li>
+      </ul>
+    </div>
+  </main>
+
+  <BottomNav active="explore" />
+</BaseLayout>

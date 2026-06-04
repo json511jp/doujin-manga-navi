@@ -1,0 +1,16 @@
+{
+  "name": "dmm-seo-kit-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "sync:products": "node --env-file-if-exists=.env scripts/sync-products.mjs",
+    "sync:actresses": "node --env-file-if-exists=.env scripts/sync-actresses.mjs",
+    "sync:rankings": "node --env-file-if-exists=.env scripts/sync-rankings.mjs",
+    "backfill": "node --env-file-if-exists=.env scripts/backfill.mjs",
+    "generate:descriptions": "node --env-file-if-exists=.env scripts/generate-descriptions.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4"
+  }
+}

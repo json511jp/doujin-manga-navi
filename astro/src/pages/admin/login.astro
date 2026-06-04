@@ -1,0 +1,147 @@
+---
+import { createClient } from '@supabase/supabase-js';
+import { siteConfig } from '../../../../site.config.js';
+
+let message = '';
+let isError = false;
+
+// コールバックから渡されたエラーを表示
+const errorParam = Astro.url.searchParams.get('error');
+if (errorParam) {
+  message = errorParam;
+  isError = true;
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') ?? '').trim();
+
+  if (!email) {
+    message = 'メールアドレスを入力してください';
+    isError = true;
+  } else {
+    const client = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { auth: { flowType: 'implicit' } },
+    );
+    const origin = Astro.url.origin;
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${origin}/admin/auth/callback`,
+        shouldCreateUser: false,
+      },
+    });
+    if (error) {
+      message = `送信エラー: ${error.message}`;
+      isError = true;
+    } else {
+      message = `${email} にログインリンクを送信しました。メールをご確認ください。`;
+    }
+  }
+}
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>管理者ログイン — {siteConfig.siteName}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b; --surface: #131316; --border: #27272a;
+      --text: #fafafa; --text-2: #a1a1aa; --muted: #71717a;
+      --accent: #d4a843; --accent-soft: rgba(212,168,67,0.12);
+      --danger: #ef4444; --success: #10b981;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      background-image: radial-gradient(circle at 20% 0%, rgba(212,168,67,0.06), transparent 50%),
+                        radial-gradient(circle at 80% 100%, rgba(212,168,67,0.04), transparent 50%);
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 36px 32px; width: 100%; max-width: 380px;
+      box-shadow: 0 20px 50px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    }
+    .brand {
+      display: flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; margin: 0 auto 16px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--accent), #b58a2e);
+      color: #000; font-weight: 800; font-size: 20px;
+      box-shadow: 0 6px 18px -4px rgba(212,168,67,0.5);
+    }
+    .title { font-size: 18px; font-weight: 600; text-align: center; letter-spacing: -0.01em; }
+    .subtitle { font-size: 13px; color: var(--text-2); text-align: center; margin-top: 4px; margin-bottom: 28px; }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block; font-size: 12px; font-weight: 500;
+      color: var(--text-2); margin-bottom: 6px;
+    }
+    input[type="email"] {
+      width: 100%; padding: 10px 12px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-size: 14px; font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="email"]:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    button {
+      width: 100%; padding: 10px; margin-top: 8px;
+      background: var(--accent); color: #000; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+      box-shadow: 0 2px 8px -2px rgba(212,168,67,0.4);
+    }
+    button:hover { background: #e0b54f; transform: translateY(-1px); }
+    .message {
+      margin-top: 16px; padding: 10px 12px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5;
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .message.success { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+    .message.error   { background: rgba(239,68,68,0.1);  color: var(--danger);  border: 1px solid rgba(239,68,68,0.2); }
+    .hint {
+      margin-top: 24px; padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--muted); text-align: center; line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">{siteConfig.siteName?.charAt(0) ?? 'A'}</div>
+    <div class="title">{siteConfig.siteName}</div>
+    <div class="subtitle">管理者としてログイン</div>
+    <form method="POST">
+      <div class="form-group">
+        <label for="email">メールアドレス</label>
+        <input type="email" id="email" name="email" placeholder="admin@example.com" required autocomplete="email" />
+      </div>
+      <button type="submit">マジックリンクを送信</button>
+    </form>
+    {message && (
+      <div class={`message ${isError ? 'error' : 'success'}`}>{message}</div>
+    )}
+    <p class="hint">
+      登録済みのメールアドレスにログインリンクが届きます。<br />
+      リンクをクリックするとパスワード不要でログインできます。
+    </p>
+  </div>
+</body>
+</html>

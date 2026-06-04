@@ -1,0 +1,375 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import BottomNav from '../../components/BottomNav.astro';
+import ProductCard from '../../components/ProductCard.astro';
+import VideoModal from '../../components/VideoModal.astro';
+import ImageLightbox from '../../components/ImageLightbox.astro';
+import LikeButton from '../../components/LikeButton.astro';
+import { supabase } from '../../lib/supabase';
+import { siteConfig } from '../../../../site.config.js';
+
+const { features, ctaLabel } = siteConfig;
+
+const { content_id } = Astro.params;
+
+const { data: product } = await supabase
+  .from('products')
+  .select(`
+    *,
+    product_actresses ( actresses ( id, name, slug, image_url_small, bust, cup, waist, hip ) ),
+    product_genres    ( genres    ( id, name, slug ) )
+  `)
+  .eq('dmm_content_id', content_id!)
+  .eq('is_active', true)
+  .single();
+
+if (!product) return Astro.redirect('/404');
+
+type ProductDetail = {
+  id: string;
+  dmm_content_id: string;
+  title: string;
+  description: string | null;
+  image_url_small: string | null;
+  image_url_large: string | null;
+  sample_images_l: string[] | null;
+  sample_movie_url: string | null;
+  price_min: number | null;
+  price_text: string | null;
+  review_average: number | null;
+  review_count: number | null;
+  release_date: string | null;
+  volume: number | null;
+  maker_name: string | null;
+  label_name: string | null;
+  series_name: string | null;
+  director_name: string | null;
+  affiliate_url: string | null;
+  page_url: string | null;
+  product_actresses: any[];
+  product_genres: any[];
+};
+const p = product as unknown as ProductDetail;
+
+type Actress = { id: string; name: string; slug: string; image_url_small: string | null; bust: number | null; cup: string | null; waist: number | null; hip: number | null };
+type Genre   = { id: string; name: string; slug: string };
+
+const actresses: Actress[] = p.product_actresses?.map((r: any) => r.actresses).filter(Boolean) ?? [];
+const genres: Genre[]      = p.product_genres?.map((r: any) => r.genres).filter(Boolean) ?? [];
+
+// 関連作品（同ジャンル）とlikeCount を並列取得
+const genreIds = genres.map(g => g.id);
+const [{ data: relatedRaw }, { count: likeCount }] = await Promise.all([
+  genreIds.length > 0
+    ? supabase
+        .from('product_genres')
+        .select('products ( id, dmm_content_id, title, image_url_small, review_average, price_min, price_text )')
+        .in('genre_id', genreIds)
+        .neq('product_id', p.id)
+        .limit(6)
+    : Promise.resolve({ data: [] }),
+  supabase
+    .from('likes').select('id', { count: 'exact', head: true })
+    .eq('target_type', 'product').eq('target_id', p.id),
+]);
+
+type ProductRow = { id: string; dmm_content_id: string; title: string; image_url_small: string | null; review_average: number | null; price_min: number | null; price_text: string | null };
+const related: ProductRow[] = [...new Map(
+  ((relatedRaw ?? []) as any[]).map((r: any) => r.products).filter(Boolean).map((p: any) => [p.id, p])
+).values()].slice(0, 6);
+
+const price = p.price_text ?? (p.price_min ? `¥${p.price_min.toLocaleString()}〜` : null);
+const stars  = p.review_average ? Number(p.review_average).toFixed(1) : null;
+
+const metaDescription = truncateMetaDescription(p.description ?? `${p.title}の詳細・サンプル・レビュー情報。`);
+
+function truncateMetaDescription(value: string, maxLength = 120) {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+// JSON-LD
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: p.title,
+  description: p.description ?? undefined,
+  image: p.image_url_large ?? p.image_url_small ?? undefined,
+  url: `${siteConfig.siteUrl}/item/${content_id}`,
+  ...(stars && p.review_count && p.review_count > 0 ? {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: stars,
+      reviewCount: p.review_count,
+    }
+  } : {}),
+  offers: {
+    '@type': 'Offer',
+    url: `${siteConfig.siteUrl}/item/${content_id}`,
+    priceCurrency: 'JPY',
+    ...(p.price_min ? { price: p.price_min } : {}),
+  },
+};
+
+const videoLd = (features.sampleMovie && p.sample_movie_url) ? {
+  '@context': 'https://schema.org',
+  '@type': 'VideoObject',
+  name: p.title,
+  description: p.description ?? p.title,
+  thumbnailUrl: p.image_url_large ?? p.image_url_small ?? undefined,
+  embedUrl: p.sample_movie_url,
+  ...(p.release_date ? { uploadDate: p.release_date } : {}),
+  ...(features.duration && p.volume ? { duration: `PT${p.volume}M` } : {}),
+} : null;
+
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'TOP',    item: `${siteConfig.siteUrl}/` },
+    { '@type': 'ListItem', position: 2, name: genres[0]?.name ?? '作品', item: genres[0] ? `${siteConfig.siteUrl}/tag/${genres[0].slug}` : `${siteConfig.siteUrl}/` },
+    { '@type': 'ListItem', position: 3, name: p.title },
+  ],
+};
+---
+
+<BaseLayout
+  title={`${p.title} | ${siteConfig.siteName}`}
+  description={metaDescription}
+  ogImage={p.image_url_large ?? p.image_url_small ?? undefined}
+  canonical={`${siteConfig.siteUrl}/item/${p.dmm_content_id}`}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+    {videoLd && <script type="application/ld+json" set:html={JSON.stringify(videoLd)} />}
+  </Fragment>
+
+  <Header title={p.title} showBack />
+
+  <!-- Breadcrumb -->
+  <nav style="padding:10px 16px;font-size:12px;color:#555;max-width:1024px;margin:0 auto;">
+    <a href="/" style="color:#555;text-decoration:none;">TOP</a>
+    {genres[0] && <><span style="margin:0 6px;">›</span><a href={`/tag/${genres[0].slug}`} style="color:#555;text-decoration:none;">{genres[0].name}</a></>}
+    <span style="margin:0 6px;">›</span>
+    <span style="color:#888;">作品詳細</span>
+  </nav>
+
+  <main style="max-width:1024px;margin:0 auto;padding-bottom:100px;">
+
+    <!-- Hero Image -->
+    <div style="width:100%;max-height:420px;overflow:hidden;background:#111;display:flex;align-items:center;justify-content:center;position:relative;">
+      {p.image_url_large
+        ? <img src={p.image_url_large} alt={p.title} style="width:100%;max-height:420px;object-fit:contain;" />
+        : <div style="width:100%;aspect-ratio:2/3;max-height:420px;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);"></div>
+      }
+      {features.vrBadge && (
+        <div style="position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.8);border:1px solid #d4a843;color:#d4a843;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:1px;">
+          VR
+        </div>
+      )}
+    </div>
+
+    <div style="padding:16px;">
+
+      <!-- Tags -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        {genres.map(g => (
+          <a href={`/tag/${g.slug}`} style="background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.3);color:#d4a843;font-size:11px;font-weight:500;padding:3px 8px;border-radius:4px;text-decoration:none;">{g.name}</a>
+        ))}
+      </div>
+
+      <!-- Title -->
+      <h1 style="font-size:18px;font-weight:700;line-height:1.5;margin-bottom:12px;">{p.title}</h1>
+
+      <!-- Like -->
+      <div style="margin-bottom:16px;">
+        <LikeButton targetType="product" targetId={p.id} initialCount={likeCount ?? 0} />
+      </div>
+
+      <!-- Review -->
+      {stars && (
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <span style="font-size:36px;font-weight:700;color:#d4a843;line-height:1;">{stars}</span>
+          <div>
+            <div style="font-size:20px;color:#d4a843;">{'★'.repeat(Math.round(Number(stars)))}</div>
+            <div style="font-size:13px;color:#888;">{p.review_count}件のレビュー</div>
+          </div>
+        </div>
+      )}
+
+      <!-- Meta Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+        {price && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">価格</div>
+            <div style="font-size:14px;font-weight:600;color:#d4a843;">{price}</div>
+          </div>
+        )}
+        {features.duration && p.volume && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">収録時間</div>
+            <div style="font-size:14px;font-weight:600;">{p.volume}分</div>
+          </div>
+        )}
+        {p.release_date && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">発売日</div>
+            <div style="font-size:14px;font-weight:600;">{new Date(p.release_date).toLocaleDateString('ja-JP')}</div>
+          </div>
+        )}
+        {features.maker && p.maker_name && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">メーカー</div>
+            <div style="font-size:12px;font-weight:600;">{p.maker_name}</div>
+          </div>
+        )}
+        {features.maker && p.label_name && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">レーベル</div>
+            <div style="font-size:12px;font-weight:600;">{p.label_name}</div>
+          </div>
+        )}
+        {features.maker && p.series_name && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">シリーズ</div>
+            <div style="font-size:12px;font-weight:600;">{p.series_name}</div>
+          </div>
+        )}
+        {features.director && p.director_name && (
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px;">
+            <div style="font-size:11px;color:#555;margin-bottom:3px;">監督</div>
+            <div style="font-size:12px;font-weight:600;">{p.director_name}</div>
+          </div>
+        )}
+      </div>
+
+      <!-- Sample Movie -->
+      {features.sampleMovie && p.sample_movie_url && (
+        <div style="margin-bottom:20px;">
+          <button
+            onclick={`openVideoModal(${JSON.stringify(p.sample_movie_url)})`}
+            style="display:flex;align-items:center;gap:10px;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);color:#d4a843;font-size:15px;font-weight:700;padding:14px 20px;border-radius:10px;cursor:pointer;width:100%;"
+          >
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            サンプル動画を再生
+          </button>
+        </div>
+      )}
+
+      <!-- Trial Reading (ebook) -->
+      {features.trialReading && p.page_url && (
+        <div style="margin-bottom:20px;">
+          <a
+            href={p.page_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style="display:flex;align-items:center;gap:10px;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.3);color:#3498db;font-size:15px;font-weight:700;padding:14px 20px;border-radius:10px;text-decoration:none;width:100%;"
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            立ち読みする（無料）
+          </a>
+        </div>
+      )}
+
+      <!-- Sample Images -->
+      {p.sample_images_l && p.sample_images_l.length > 0 && (() => {
+        const imgs: string[] = (p.sample_images_l as unknown as (string | string[])[]).flat() as string[];
+        const imgsJson = JSON.stringify(imgs);
+        return (
+          <div style="margin-bottom:20px;">
+            <div style="font-size:15px;font-weight:700;margin-bottom:10px;">サンプル画像 <span style="font-size:12px;color:#888;font-weight:400;">{imgs.length}枚</span></div>
+            <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;">
+              {imgs.map((src, i) => (
+                <button
+                  onclick={`openLightbox(${imgsJson},${i})`}
+                  style="flex-shrink:0;padding:0;background:none;border:none;cursor:pointer;border-radius:6px;overflow:hidden;"
+                >
+                  <img src={src} alt={`サンプル${i + 1}`} loading="lazy" style="height:90px;display:block;border-radius:6px;object-fit:cover;" />
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      <!-- Description -->
+      {p.description && (
+        <div style="margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">あらすじ</div>
+          <p style="font-size:13px;color:#ccc;line-height:1.9;white-space:pre-line;">{p.description}</p>
+        </div>
+      )}
+
+      <!-- Actresses -->
+      {features.actresses && actresses.length > 0 && (
+        <div style="margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">出演女優</div>
+          {actresses.map(a => (
+            <div style="background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+              <div style="width:52px;height:52px;border-radius:50%;background:#1a1a1a;border:2px solid #d4a843;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                {a.image_url_small
+                  ? <img src={a.image_url_small} alt={a.name} loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
+                  : <svg width="28" height="28" fill="none" stroke="#555" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                }
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:600;">{a.name}</div>
+                {(a.bust || a.cup) && <div style="font-size:12px;color:#888;margin-top:2px;">B{a.bust}{a.cup} W{a.waist} H{a.hip}</div>}
+              </div>
+              <a href={`/actress/${a.slug}`} style="background:none;border:1px solid #2a2a2a;color:#888;font-size:12px;padding:6px 10px;border-radius:6px;text-decoration:none;white-space:nowrap;">詳細 →</a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <!-- Related -->
+      {related.length > 0 && (
+        <div style="margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">関連作品</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {related.map(p => (
+              <a href={`/item/${p.dmm_content_id}`} style="display:flex;align-items:center;gap:12px;background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px;text-decoration:none;color:inherit;">
+                <div style="width:64px;height:90px;border-radius:6px;overflow:hidden;flex-shrink:0;background:#1a1a1a;">
+                  {p.image_url_small && <img src={p.image_url_small} alt={p.title} loading="lazy" style="width:100%;height:100%;object-fit:cover;" />}
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{p.title}</div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                    {p.review_average != null && p.review_average > 0 && <span style="color:#d4a843;font-size:13px;font-weight:600;">★ {Number(p.review_average).toFixed(1)}</span>}
+                    {(p.price_text || p.price_min) && <span style="font-size:13px;font-weight:600;margin-left:auto;">{p.price_text ?? `¥${p.price_min!.toLocaleString()}〜`}</span>}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+    </div>
+  </main>
+
+  <!-- Floating CTA -->
+  {(p.affiliate_url ?? p.page_url) && (
+    <div style="position:fixed;bottom:0;left:0;right:0;padding:12px 16px 72px;background:linear-gradient(to top,rgba(10,10,10,1) 60%,transparent);z-index:50;">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+        <span style="font-size:10px;color:#888;background:rgba(0,0,0,0.5);border:1px solid #333;padding:1px 6px;border-radius:3px;">PR</span>
+      </div>
+      <a
+        href={p.affiliate_url ?? p.page_url!}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        style="display:flex;align-items:center;justify-content:center;gap:8px;background:#d4a843;color:#000;font-weight:700;font-size:16px;width:100%;padding:16px;border-radius:12px;text-decoration:none;"
+      >
+        {ctaLabel} ↗
+        {price && <span style="font-size:13px;font-weight:500;opacity:0.7;">{price}</span>}
+      </a>
+    </div>
+  )}
+
+  <BottomNav />
+  {features.sampleMovie && <VideoModal />}
+  <ImageLightbox />
+</BaseLayout>

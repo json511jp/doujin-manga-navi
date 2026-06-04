@@ -1,0 +1,74 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import BottomNav from '../components/BottomNav.astro';
+import { siteConfig } from '../../../site.config.js';
+---
+
+<BaseLayout
+  title={`プライバシーポリシー | ${siteConfig.siteName}`}
+  description={`${siteConfig.siteName}のプライバシーポリシー。Cookie・個人情報の取り扱い・アフィリエイト表記について説明します。`}
+  noindex={false}
+>
+  <Header showBack />
+
+  <main style="max-width:800px;margin:0 auto;padding:24px 16px 100px;">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:24px;border-bottom:1px solid #2a2a2a;padding-bottom:16px;">プライバシーポリシー</h1>
+
+    <div style="font-size:14px;line-height:1.9;color:#ccc;">
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">1. サイト概要</h2>
+        <p>{siteConfig.siteName}（{siteConfig.siteUrl.replace('https://', '')}、以下「当サイト」）は、FANZA（DMM）のアフィリエイトプログラムに参加する個人運営の作品紹介サイトです。{siteConfig.affiliate.ageRestricted && '当サイトは18歳以上の方を対象としています。'}</p>
+      </section>
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">2. アフィリエイト・広告について</h2>
+        <p>当サイトはDMM.com合同会社が運営するFANZAアフィリエイトプログラムに参加しています。当サイト内のリンクを経由してFANZAで商品をご購入いただいた場合、当サイトは紹介手数料を受け取ることがあります。</p>
+        <p style="margin-top:8px;">アフィリエイトリンクには <code style="background:#1a1a1a;padding:1px 6px;border-radius:3px;font-size:12px;">PR</code> または <code style="background:#1a1a1a;padding:1px 6px;border-radius:3px;font-size:12px;">広告</code> と表示しています。紹介料の受け取りが当サイトのコンテンツ内容・評価に影響することはありません。</p>
+      </section>
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">3. Cookieの利用</h2>
+        <p>当サイトは以下の目的でCookieを使用しています。</p>
+        <ul style="margin-top:8px;padding-left:20px;">
+          <li style="margin-bottom:6px;"><strong style="color:#f0f0f0;">年齢確認Cookie（age_confirmed）</strong>：18歳以上であることを確認した方に対して、再訪問時に年齢確認画面を省略するために使用します。有効期間は365日です。</li>
+        </ul>
+        <li style="margin-bottom:6px;"><strong style="color:#f0f0f0;">アクセス解析Cookie（Google Analytics 4）</strong>：サイトの利用状況を把握するためにGoogle Analytics 4を使用しています。収集データはGoogleのサーバーに送信されます。本Cookieはお客様の同意を確認後にのみ有効化されます。有効期間は365日です。同意はいつでも取り消せます（ブラウザのCookieを削除してください）。<a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#d4a843;">Googleプライバシーポリシー</a></li>
+      </section>
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">4. 外部サービスへの情報送信</h2>
+        <p>当サイトは以下の外部サービスを利用しており、ページ閲覧時にIPアドレス等の情報が各サービスに送信される場合があります。</p>
+        <ul style="margin-top:8px;padding-left:20px;">
+          <li style="margin-bottom:6px;"><strong style="color:#f0f0f0;">Google Fonts（fonts.googleapis.com）</strong>：フォントの読み込みに使用。<a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#d4a843;">Googleのプライバシーポリシー</a></li>
+          <li style="margin-bottom:6px;"><strong style="color:#f0f0f0;">FANZA/DMM</strong>：アフィリエイトリンクのクリック時にFANZAのトラッキングCookieが設定される場合があります。<a href="https://www.dmm.com/company/privacy.html" target="_blank" rel="noopener noreferrer" style="color:#d4a843;">DMMのプライバシーポリシー</a></li>
+          <li style="margin-bottom:6px;"><strong style="color:#f0f0f0;">Cloudflare</strong>：サイトのホスティングにCloudflareを使用しています。<a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer" style="color:#d4a843;">Cloudflareのプライバシーポリシー</a></li>
+        </ul>
+      </section>
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">5. 掲載情報について</h2>
+        <p>当サイトに掲載している作品情報（タイトル・価格・画像・女優情報など）はDMM Web APIを通じて取得したものです。情報の正確性を保つよう努めていますが、配信状況・価格・在庫は予告なく変更される場合があります。最新情報は各作品のFANZA配信ページでご確認ください。</p>
+      </section>
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">6. 免責事項</h2>
+        <p>当サイトのリンクを経由して外部サービスでご購入・ご利用された際のトラブルについて、当サイトは一切の責任を負いません。</p>
+      </section>
+
+      <section style="margin-bottom:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:12px;">7. お問い合わせ</h2>
+        <p>本ポリシーに関するご質問・ご意見は下記までお問い合わせください。</p>
+        <p style="margin-top:8px;"><a href={`mailto:${siteConfig.contactEmail}`} style="color:#d4a843;">{siteConfig.contactEmail}</a></p>
+      </section>
+
+      <section>
+        <p style="font-size:12px;color:#555;">最終更新：2026年5月15日</p>
+      </section>
+
+    </div>
+  </main>
+
+  <BottomNav />
+</BaseLayout>

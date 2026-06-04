@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import BottomNav from '../components/BottomNav.astro';
+import { siteConfig } from '../../../site.config.js';
+---
+
+<BaseLayout
+  title={`このサイトについて | ${siteConfig.siteName}`}
+  description={`${siteConfig.siteName}について。サイトの目的・運営方針・アフィリエイト表記・お問い合わせ先を掲載しています。`}
+>
+  <Header showBack />
+
+  <main style="max-width:800px;margin:0 auto;padding:24px 16px 100px;">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:24px;border-bottom:1px solid #2a2a2a;padding-bottom:16px;">このサイトについて</h1>
+
+    <div style="font-size:14px;line-height:1.9;color:#ccc;display:flex;flex-direction:column;gap:28px;">
+
+      <section>
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:10px;">サイト概要</h2>
+        <p>{siteConfig.siteName}（{siteConfig.siteUrl.replace('https://', '')}）は、FANZA（DMM）で配信されている動画作品を紹介する個人運営のアフィリエイトサイトです。作品のレビュー評価・価格・出演者情報などをもとに、お気に入りの作品を見つけやすくすることを目的としています。</p>
+        <p style="margin-top:8px;">本サイトは18歳以上の方を対象としています。</p>
+      </section>
+
+      <section>
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:10px;">アフィリエイトについて</h2>
+        <p>本サイトはDMM.com合同会社が運営するFANZAアフィリエイトプログラムに参加しています。サイト内のリンクを経由してFANZAで作品をご購入いただいた場合、当サイトは紹介手数料を受け取ることがあります。</p>
+        <p style="margin-top:8px;">アフィリエイトリンクには <span style="background:#1a1a1a;border:1px solid #333;padding:1px 6px;border-radius:3px;font-size:12px;color:#aaa;">PR</span> と表示しています。手数料の受け取りがコンテンツの内容や評価に影響することはありません。</p>
+        <p style="margin-top:8px;">作品の購入・視聴はFANZA（DMM）のサービスを通じて行われます。価格・配信状況・サポートはFANZAの各規約に従います。</p>
+      </section>
+
+      <section>
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:10px;">掲載情報について</h2>
+        <p>作品情報（タイトル・価格・画像・女優情報など）はDMM Web APIを通じて取得しています。情報の正確性を保つよう努めていますが、配信状況・価格・在庫は予告なく変更される場合があります。最新情報は各作品のFANZA配信ページでご確認ください。</p>
+      </section>
+
+      <section>
+        <h2 style="font-size:16px;font-weight:700;color:#f0f0f0;margin-bottom:10px;">運営者</h2>
+        <p>個人運営（日本）</p>
+        <p style="margin-top:6px;">お問い合わせ：<a href={`mailto:${siteConfig.contactEmail}`} style="color:#d4a843;">{siteConfig.contactEmail}</a></p>
+      </section>
+
+      <section>
+        <p style="font-size:12px;color:#555;">最終更新：2026年5月16日</p>
+      </section>
+
+    </div>
+  </main>
+
+  <BottomNav />
+</BaseLayout>

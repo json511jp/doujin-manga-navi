@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // ★ サイトに合わせて変更してください（Cloudflare Pagesのプロジェクト名）
+  "name": "doujin-manga-navi",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./astro/dist",
+    "not_found_handling": "404-page"
+  }
+}

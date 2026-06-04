@@ -1,0 +1,98 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAdminClient } from '../../lib/adminClient';
+
+const client = getAdminClient();
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = form.get('action');
+
+  if (action === 'update') {
+    const id       = String(form.get('id'));
+    const name     = String(form.get('name'));
+    const slug     = String(form.get('slug'));
+    const genreIds = String(form.get('genre_ids')).split(',').map(s => s.trim()).filter(Boolean);
+    await client.from('moods').update({ name, slug, genre_ids: genreIds }).eq('id', id);
+  } else if (action === 'create') {
+    const name     = String(form.get('name'));
+    const slug     = String(form.get('slug'));
+    const genreIds = String(form.get('genre_ids')).split(',').map(s => s.trim()).filter(Boolean);
+    await client.from('moods').insert({ name, slug, genre_ids: genreIds });
+  } else if (action === 'delete') {
+    const id = String(form.get('id'));
+    await client.from('moods').delete().eq('id', id);
+  }
+  return Astro.redirect('/admin/moods?saved=1');
+}
+
+const { data: moods } = await client.from('moods').select('*').order('name');
+---
+
+<AdminLayout title="ムード管理" activeNav="moods">
+  <p style="color:var(--admin-text-2);font-size:13px;margin-bottom:24px;max-width:680px;">
+    TOPページに表示されるムードボタンを管理します。ジャンルIDは Supabase の <code style="background:var(--admin-surface);padding:2px 6px;border-radius:4px;font-size:11px;">genres</code> テーブルから取得してください。
+  </p>
+
+  <!-- 新規追加 -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">新しいムードを追加</div>
+    <form method="POST">
+      <input type="hidden" name="action" value="create" />
+      <div style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:12px;align-items:end;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">表示名</label>
+          <input class="form-input" name="name" placeholder="例: 刺激が欲しい" required />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">スラッグ（URL）</label>
+          <input class="form-input" name="slug" placeholder="例: intense" required />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">ジャンルID（カンマ区切り）</label>
+          <input class="form-input" name="genre_ids" placeholder="例: 1013, 6094" />
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          追加
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 既存ムード一覧 -->
+  <div class="card-title" style="margin-bottom:12px;">登録済みムード（{(moods ?? []).length}件）</div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
+    {(moods ?? []).map(mood => (
+      <form method="POST" class="card" style="padding:16px;">
+        <input type="hidden" name="action" value="update" />
+        <input type="hidden" name="id" value={mood.id} />
+        <div style="display:grid;grid-template-columns:1fr 1fr 2fr auto auto;gap:12px;align-items:end;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">表示名</label>
+            <input class="form-input" name="name" value={mood.name} required />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">スラッグ</label>
+            <input class="form-input" name="slug" value={mood.slug} required />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">ジャンルID</label>
+            <input class="form-input" name="genre_ids" value={(mood.genre_ids as string[]).join(', ')} />
+          </div>
+          <button type="submit" class="btn btn-primary" style="white-space:nowrap;">保存</button>
+          <button type="submit" formaction="?delete=1" name="_delete" value={mood.id}
+                  class="btn btn-ghost icon-only" title="削除"
+                  onclick={`if(!confirm('「${mood.name}」を削除しますか？')){return false;} this.form.querySelector('input[name=action]').value='delete'; this.form.querySelector('input[name=id]').value='${mood.id}'; return true;`}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+      </form>
+    ))}
+  </div>
+</AdminLayout>
+
+<style>
+  .btn.icon-only { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+  .btn.icon-only:hover { background: var(--admin-danger-soft); border-color: var(--admin-danger); color: var(--admin-danger); }
+</style>

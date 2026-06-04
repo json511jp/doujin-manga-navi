@@ -1,0 +1,96 @@
+<!-- Image lightbox — openLightbox(images: string[], startIndex: number) -->
+<div id="lb-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.95);flex-direction:column;align-items:center;justify-content:center;">
+  <!-- Close -->
+  <button id="lb-close" aria-label="閉じる" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+
+  <!-- Counter -->
+  <div id="lb-counter" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.6);font-size:13px;pointer-events:none;"></div>
+
+  <!-- Image -->
+  <img id="lb-img" src="" alt="" style="max-width:96vw;max-height:85dvh;object-fit:contain;border-radius:4px;user-select:none;" />
+
+  <!-- Prev -->
+  <button id="lb-prev" aria-label="前の画像" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+
+  <!-- Next -->
+  <button id="lb-next" aria-label="次の画像" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
+
+  <!-- Thumbnails -->
+  <div id="lb-thumbs" style="position:absolute;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:6px;padding:0 16px;overflow-x:auto;scrollbar-width:none;"></div>
+</div>
+
+<script>
+  const overlay = document.getElementById('lb-overlay') as HTMLDivElement;
+  const img     = document.getElementById('lb-img') as HTMLImageElement;
+  const counter = document.getElementById('lb-counter')!;
+  const thumbs  = document.getElementById('lb-thumbs')!;
+  const prevBtn = document.getElementById('lb-prev')!;
+  const nextBtn = document.getElementById('lb-next')!;
+
+  let images: string[] = [];
+  let current = 0;
+
+  function show(index: number) {
+    current = (index + images.length) % images.length;
+    img.src = images[current];
+    counter.textContent = `${current + 1} / ${images.length}`;
+    prevBtn.style.display = images.length > 1 ? 'flex' : 'none';
+    nextBtn.style.display = images.length > 1 ? 'flex' : 'none';
+    // highlight active thumb
+    thumbs.querySelectorAll('button').forEach((t, i) => {
+      (t as HTMLElement).style.opacity = i === current ? '1' : '0.4';
+      (t as HTMLElement).style.borderColor = i === current ? '#d4a843' : 'transparent';
+    });
+    // scroll active thumb into view
+    const active = thumbs.querySelectorAll('button')[current] as HTMLElement | undefined;
+    active?.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+  }
+
+  function openLightbox(imgs: string[], startIndex = 0) {
+    images = imgs;
+    // build thumbnails
+    thumbs.innerHTML = '';
+    imgs.forEach((src, i) => {
+      const btn = document.createElement('button');
+      btn.style.cssText = 'flex-shrink:0;width:44px;height:44px;border-radius:4px;overflow:hidden;cursor:pointer;background:#111;border:2px solid transparent;padding:0;';
+      const t = document.createElement('img');
+      t.src = src; t.loading = 'lazy';
+      t.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      btn.appendChild(t);
+      btn.addEventListener('click', () => show(i));
+      thumbs.appendChild(btn);
+    });
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    show(startIndex);
+  }
+
+  function closeLightbox() {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+    img.src = '';
+    images = [];
+  }
+
+  prevBtn.addEventListener('click', () => show(current - 1));
+  nextBtn.addEventListener('click', () => show(current + 1));
+  document.getElementById('lb-close')!.addEventListener('click', closeLightbox);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeLightbox(); });
+  document.addEventListener('keydown', (e) => {
+    if (overlay.style.display === 'none') return;
+    if (e.key === 'Escape')      closeLightbox();
+    if (e.key === 'ArrowLeft')   show(current - 1);
+    if (e.key === 'ArrowRight')  show(current + 1);
+  });
+
+  // touch swipe
+  let touchX = 0;
+  overlay.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  overlay.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) show(current + (dx < 0 ? 1 : -1));
+  });
+
+  (window as any).openLightbox = openLightbox;
+  (window as any).closeLightbox = closeLightbox;
+</script>

@@ -1,0 +1,59 @@
+---
+import { siteConfig } from '../../../site.config.js';
+
+interface Props {
+  title?: string;
+  showBack?: boolean;
+}
+const { title, showBack = false } = Astro.props;
+
+const accentColor = siteConfig.colors?.accent ?? '#d4a843';
+---
+
+<header style="position:sticky;top:0;height:56px;background:rgba(10,10,10,0.92);border-bottom:1px solid #2a2a2a;z-index:100;backdrop-filter:blur(8px);">
+  <div style="max-width:1024px;margin:0 auto;height:100%;display:flex;align-items:center;padding:0 16px;gap:12px;">
+    {showBack
+      ? <a href="javascript:history.back()" style="color:#888;text-decoration:none;font-size:14px;padding:8px 8px 8px 0;">←</a>
+      : null
+    }
+    {title
+      ? <span style="font-size:15px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{title}</span>
+      : <a href="/" style={`text-decoration:none;flex:1;font-size:16px;font-weight:700;color:${accentColor};letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`} aria-label={`${siteConfig.siteName} トップへ`}>
+          {siteConfig.siteName}
+        </a>
+    }
+    <button
+      id="searchToggle"
+      style="background:none;border:none;color:#888;cursor:pointer;padding:8px;"
+      aria-label="検索"
+    >
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- Search bar (hidden by default) -->
+<div id="searchBar" style="display:none;background:#111;border-bottom:1px solid #2a2a2a;padding:8px 16px;">
+  <form id="searchForm" action="/products" method="get" style="display:flex;gap:8px;">
+    <input
+      id="searchInput"
+      type="search"
+      name="q"
+      placeholder="作品・女優・タグを検索…"
+      style="flex:1;background:#1a1a1a;border:1px solid #2a2a2a;color:#f0f0f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;"
+    />
+    <button type="submit" style="background:#d4a843;border:none;color:#000;font-weight:700;font-size:13px;padding:0 16px;border-radius:8px;cursor:pointer;">検索</button>
+  </form>
+</div>
+
+<script>
+  const toggle = document.getElementById('searchToggle');
+  const bar = document.getElementById('searchBar');
+  toggle?.addEventListener('click', () => {
+    const visible = bar?.style.display !== 'none';
+    if (bar) bar.style.display = visible ? 'none' : 'block';
+    if (!visible) (document.getElementById('searchInput') as HTMLInputElement)?.focus();
+  });
+</script>

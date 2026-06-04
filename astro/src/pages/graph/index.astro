@@ -1,0 +1,268 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import BottomNav from '../../components/BottomNav.astro';
+import { supabase } from '../../lib/supabase';
+import { siteConfig } from '../../../../site.config.js';
+
+// 共演回数の多い関係を取得（上位300件に絞る）
+let relationsRaw: any[] | null = null;
+try {
+  const { data, error } = await supabase
+    .from('actress_relations')
+    .select(`
+      actress_a_id, actress_b_id, co_appearances,
+      actress_a:actresses!actress_relations_actress_a_id_fkey ( id, name, slug, image_url_small ),
+      actress_b:actresses!actress_relations_actress_b_id_fkey ( id, name, slug, image_url_small )
+    `)
+    .order('co_appearances', { ascending: false })
+    .limit(300);
+  if (!error) relationsRaw = data;
+} catch (_) {
+  // fall through with empty data
+}
+
+type ActressNode = { id: string; name: string; slug: string; image_url_small: string | null };
+type RelationRow = { actress_a_id: string; actress_b_id: string; co_appearances: number; actress_a: ActressNode | null; actress_b: ActressNode | null };
+
+const relations = (relationsRaw ?? []) as unknown as RelationRow[];
+
+// ノードをユニークに収集
+const nodeMap = new Map<string, ActressNode>();
+for (const r of relations) {
+  if (r.actress_a) nodeMap.set(r.actress_a.id, r.actress_a);
+  if (r.actress_b) nodeMap.set(r.actress_b.id, r.actress_b);
+}
+const nodes = [...nodeMap.values()];
+
+// D3に渡すデータ
+const graphData = {
+  nodes: nodes.map(n => ({ id: n.id, name: n.name, slug: n.slug, image: n.image_url_small ?? null })),
+  links: relations.map(r => ({ source: r.actress_a_id, target: r.actress_b_id, value: r.co_appearances })),
+};
+---
+
+<BaseLayout
+  title={`女優相関図 — 共演ネットワーク | ${siteConfig.siteName}`}
+  description={`${siteConfig.siteName}の女優${nodes.length}人の共演ネットワークを星座図スタイルで可視化。`}
+  noindex={true}
+>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    #graph-container { width: 100vw; height: 100dvh; background: #050510; overflow: hidden; position: relative; }
+    #graph-svg { width: 100%; height: 100%; }
+    .link { stroke: rgba(212,168,67,0.35); stroke-width: 1; }
+    .node circle { fill: rgba(212,168,67,0.8); stroke: rgba(212,168,67,0.4); stroke-width: 1; cursor: pointer; transition: r 0.2s; }
+    .node circle:hover { fill: #d4a843; }
+    #tooltip { position: fixed; background: rgba(10,10,20,0.95); border: 1px solid rgba(212,168,67,0.4); border-radius: 10px; padding: 10px 14px; color: #f0f0f0; font-size: 13px; pointer-events: none; display: none; z-index: 50; max-width: 180px; }
+    #controls { position: fixed; top: 16px; right: 16px; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
+    .ctrl-btn { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15); color: #f0f0f0; font-size: 18px; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    #info-panel { position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%); background: rgba(10,10,20,0.9); border: 1px solid rgba(212,168,67,0.3); border-radius: 12px; padding: 12px 16px; color: #f0f0f0; font-size: 13px; text-align: center; z-index: 10; backdrop-filter: blur(8px); display: none; min-width: 220px; }
+    #info-panel a { color: #d4a843; text-decoration: none; font-weight: 600; }
+    #search-box { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10; }
+    #search-input { background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); color: #f0f0f0; font-size: 13px; padding: 8px 14px; border-radius: 20px; width: 200px; outline: none; backdrop-filter: blur(4px); }
+    #search-input::placeholder { color: #555; }
+    #search-results { position: absolute; top: 40px; left: 0; right: 0; background: rgba(10,10,20,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; max-height: 200px; overflow-y: auto; display: none; }
+    .search-item { padding: 8px 14px; cursor: pointer; font-size: 13px; color: #ccc; }
+    .search-item:hover { background: rgba(212,168,67,0.1); color: #d4a843; }
+  </style>
+
+  <Header showBack />
+
+  <div id="graph-container">
+    <svg id="graph-svg"></svg>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <!-- Search -->
+  <div id="search-box">
+    <input id="search-input" type="text" placeholder="女優名で検索..." autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
+
+  <!-- Zoom controls -->
+  <div id="controls">
+    <button class="ctrl-btn" id="zoom-in">＋</button>
+    <button class="ctrl-btn" id="zoom-out">－</button>
+    <button class="ctrl-btn" id="zoom-reset" title="リセット">⌂</button>
+  </div>
+
+  <!-- Info panel (shown on node click) -->
+  <div id="info-panel"></div>
+
+  <BottomNav active="graph" />
+
+  <script define:vars={{ graphData }}>
+    // D3.js を CDN から読み込む
+    const d3Script = document.createElement('script');
+    d3Script.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+    d3Script.onload = () => initGraph(graphData);
+    document.head.appendChild(d3Script);
+
+    function initGraph({ nodes, links }) {
+      const svg = d3.select('#graph-svg');
+      const container = document.getElementById('graph-container');
+      const W = container.clientWidth;
+      const H = container.clientHeight;
+
+      // Zoom
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on('zoom', (e) => g.attr('transform', e.transform));
+      svg.call(zoom);
+
+      const g = svg.append('g');
+
+      // Degree map for node sizing
+      const degreeMap = new Map();
+      links.forEach(l => {
+        degreeMap.set(l.source, (degreeMap.get(l.source) ?? 0) + l.value);
+        degreeMap.set(l.target, (degreeMap.get(l.target) ?? 0) + l.value);
+      });
+      const maxDeg = Math.max(...degreeMap.values(), 1);
+      const nodeRadius = (id) => 4 + (degreeMap.get(id) ?? 0) / maxDeg * 14;
+
+      // Simulation
+      const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(d => 80 - Math.min(d.value * 3, 50)))
+        .force('charge', d3.forceManyBody().strength(-120))
+        .force('center', d3.forceCenter(W / 2, H / 2))
+        .force('collision', d3.forceCollide().radius(d => nodeRadius(d.id) + 6));
+
+      // Links
+      const link = g.append('g')
+        .selectAll('line')
+        .data(links)
+        .join('line')
+        .attr('class', 'link')
+        .attr('stroke-width', d => Math.min(d.value * 0.5, 3));
+
+      // Defs: glow filter + image patterns
+      const defs = svg.append('defs');
+
+      const filter = defs.append('filter').attr('id', 'glow');
+      filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
+      const feMerge = filter.append('feMerge');
+      feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+      feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+      // One pattern per actress with image
+      nodes.forEach(n => {
+        if (!n.image) return;
+        defs.append('pattern')
+          .attr('id', `img-${n.id}`)
+          .attr('patternUnits', 'objectBoundingBox')
+          .attr('patternContentUnits', 'objectBoundingBox')
+          .attr('width', 1)
+          .attr('height', 1)
+          .append('image')
+          .attr('href', n.image)
+          .attr('width', 1)
+          .attr('height', 1)
+          .attr('preserveAspectRatio', 'xMidYMid slice');
+      });
+
+      // Nodes
+      const node = g.append('g')
+        .selectAll('g')
+        .data(nodes)
+        .join('g')
+        .attr('class', 'node')
+        .call(d3.drag()
+          .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+          .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+      node.append('circle')
+        .attr('r', d => nodeRadius(d.id))
+        .attr('fill', d => {
+          if (d.image) return `url(#img-${d.id})`;
+          const deg = degreeMap.get(d.id) ?? 0;
+          if (deg > maxDeg * 0.7) return 'rgba(212,168,67,1)';
+          if (deg > maxDeg * 0.3) return 'rgba(212,168,67,0.75)';
+          return 'rgba(180,140,60,0.5)';
+        })
+        .attr('stroke', d => d.image ? 'rgba(212,168,67,0.8)' : 'rgba(212,168,67,0.3)')
+        .attr('stroke-width', d => d.image ? 1.5 : 1)
+        .on('click', (e, d) => showInfo(d))
+        .on('mouseover', (e, d) => showTooltip(e, d))
+        .on('mousemove', (e) => moveTooltip(e))
+        .on('mouseout', hideTooltip);
+
+      node.filter(d => (degreeMap.get(d.id) ?? 0) > maxDeg * 0.5)
+        .select('circle')
+        .attr('filter', 'url(#glow)');
+
+      simulation.on('tick', () => {
+        link
+          .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+
+      // Zoom controls
+      document.getElementById('zoom-in').onclick = () => svg.transition().call(zoom.scaleBy, 1.4);
+      document.getElementById('zoom-out').onclick = () => svg.transition().call(zoom.scaleBy, 0.7);
+      document.getElementById('zoom-reset').onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity.translate(W / 2, H / 2).scale(1).translate(-W / 2, -H / 2));
+
+      // Tooltip
+      const tooltip = document.getElementById('tooltip');
+      function showTooltip(e, d) {
+        tooltip.style.display = 'block';
+        tooltip.textContent = `${d.name}（共演: ${degreeMap.get(d.id) ?? 0}回）`;
+        moveTooltip(e);
+      }
+      function moveTooltip(e) {
+        const x = e.clientX + 12, y = e.clientY - 36;
+        tooltip.style.left = `${Math.min(x, window.innerWidth - 200)}px`;
+        tooltip.style.top = `${y}px`;
+      }
+      function hideTooltip() { tooltip.style.display = 'none'; }
+
+      // Info panel
+      const infoPanel = document.getElementById('info-panel');
+      function showInfo(d) {
+        infoPanel.style.display = 'block';
+        const imgHtml = d.image
+          ? `<img src="${d.image}" alt="${d.name}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(212,168,67,0.6);flex-shrink:0;" />`
+          : `<div style="width:52px;height:52px;border-radius:50%;background:#1a1a1a;border:2px solid rgba(212,168,67,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="24" height="24" fill="none" stroke="#555" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
+        infoPanel.innerHTML = `<div style="display:flex;align-items:center;gap:12px;">${imgHtml}<div style="text-align:left;"><strong style="color:#d4a843;font-size:14px;">${d.name}</strong><br><span style="color:#888;font-size:11px;">共演回数 ${degreeMap.get(d.id) ?? 0}回</span><br><a href="/actress/${d.slug}" style="display:inline-block;margin-top:6px;font-size:12px;color:#d4a843;">出演作品を見る →</a></div></div>`;
+      }
+      svg.on('click', (e) => {
+        if (e.target.tagName === 'svg' || e.target.tagName === 'g') infoPanel.style.display = 'none';
+      });
+
+      // Search
+      const searchInput = document.getElementById('search-input');
+      const searchResults = document.getElementById('search-results');
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        if (!q) { searchResults.style.display = 'none'; return; }
+        const matched = nodes.filter(n => n.name.includes(q)).slice(0, 10);
+        if (!matched.length) { searchResults.style.display = 'none'; return; }
+        searchResults.style.display = 'block';
+        searchResults.innerHTML = matched.map(n => `<div class="search-item" data-id="${n.id}">${n.name}</div>`).join('');
+        searchResults.querySelectorAll('.search-item').forEach(el => {
+          el.onclick = () => {
+            const id = el.dataset.id;
+            const target = nodes.find(n => n.id === id);
+            if (!target) return;
+            searchResults.style.display = 'none';
+            searchInput.value = '';
+            const scale = 2;
+            svg.transition().duration(600).call(
+              zoom.transform,
+              d3.zoomIdentity.translate(W / 2 - target.x * scale, H / 2 - target.y * scale).scale(scale)
+            );
+            showInfo(target);
+          };
+        });
+      });
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#search-box')) searchResults.style.display = 'none';
+      });
+    }
+  </script>
+</BaseLayout>

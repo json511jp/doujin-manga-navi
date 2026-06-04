@@ -1,0 +1,141 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAdminSetting, setAdminSetting } from '../../lib/adminClient';
+import { siteConfig } from '../../../../site.config.js';
+
+type SiteSettings = {
+  siteName: string;
+  siteDescription: string;
+  siteUrl: string;
+  tagline: string;
+  contactEmail: string;
+  keyword: string;
+  nicheSlug: string;
+  nicheLabel: string;
+  nicheGenreIds: string;
+  customCss: string;
+};
+
+let error = '';
+
+const savedSettings = await getAdminSetting<SiteSettings>('site_settings');
+const defaults: SiteSettings = {
+  siteName:      siteConfig.siteName,
+  siteDescription: siteConfig.siteDescription,
+  siteUrl:       siteConfig.siteUrl,
+  tagline:       siteConfig.tagline,
+  contactEmail:  siteConfig.contactEmail,
+  keyword:       siteConfig.dmm.keyword,
+  nicheSlug:     siteConfig.nicheRanking.slug,
+  nicheLabel:    siteConfig.nicheRanking.label,
+  nicheGenreIds: siteConfig.nicheRanking.genreIds.join(', '),
+  customCss:     '',
+};
+const current: SiteSettings = { ...defaults, ...savedSettings };
+
+if (Astro.request.method === 'POST') {
+  try {
+    const form = await Astro.request.formData();
+    const settings: SiteSettings = {
+      siteName:        String(form.get('siteName') ?? ''),
+      siteDescription: String(form.get('siteDescription') ?? ''),
+      siteUrl:         String(form.get('siteUrl') ?? ''),
+      tagline:         String(form.get('tagline') ?? ''),
+      contactEmail:    String(form.get('contactEmail') ?? ''),
+      keyword:         String(form.get('keyword') ?? ''),
+      nicheSlug:       String(form.get('nicheSlug') ?? ''),
+      nicheLabel:      String(form.get('nicheLabel') ?? ''),
+      nicheGenreIds:   String(form.get('nicheGenreIds') ?? ''),
+      customCss:       String(form.get('customCss') ?? ''),
+    };
+    await setAdminSetting('site_settings', settings);
+    await setAdminSetting('custom_css', settings.customCss);
+    return Astro.redirect('/admin/settings?saved=1');
+  } catch (e) {
+    error = String(e);
+  }
+}
+---
+
+<AdminLayout title="サイト設定" activeNav="settings">
+  <p style="color:var(--admin-text-2);font-size:13px;margin-bottom:24px;max-width:680px;">
+    DB に保存され、公開サイトに即時反映されます。<code style="background:var(--admin-surface);padding:2px 6px;border-radius:4px;font-size:11px;">site.config.js</code> は上書きされません（GitHub Actions / 同期スクリプトはそちらを参照）。
+  </p>
+
+  <form method="POST">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">基本情報</div>
+          <div class="form-group">
+            <label class="form-label">サイト名</label>
+            <input class="form-input" name="siteName" value={current.siteName} required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">サイト説明 (meta description)</label>
+            <textarea class="form-input" name="siteDescription" rows="3" style="resize:vertical;">{current.siteDescription}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">本番URL</label>
+            <input class="form-input" name="siteUrl" type="url" value={current.siteUrl} required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">キャッチコピー</label>
+            <input class="form-input" name="tagline" value={current.tagline} />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">お問い合わせメール</label>
+            <input class="form-input" name="contactEmail" type="email" value={current.contactEmail} />
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">DMM API 設定</div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">検索キーワード</label>
+            <input class="form-input" name="keyword" value={current.keyword} />
+            <p style="font-size:11px;color:var(--admin-muted);margin-top:6px;">空白で全件取得 / 例: 人妻, NTR, 巨乳</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">ニッチランキング</div>
+          <div class="form-group">
+            <label class="form-label">URLスラッグ</label>
+            <input class="form-input" name="nicheSlug" value={current.nicheSlug} />
+          </div>
+          <div class="form-group">
+            <label class="form-label">表示名</label>
+            <input class="form-input" name="nicheLabel" value={current.nicheLabel} />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">ジャンルID（カンマ区切り）</label>
+            <input class="form-input" name="nicheGenreIds" value={current.nicheGenreIds} />
+            <p style="font-size:11px;color:var(--admin-muted);margin-top:6px;">Supabase の genres テーブルの dmm_genre_id を参照</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">カスタムCSS</div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">全ページに追加適用</label>
+            <textarea class="form-input" name="customCss" rows="8" style="resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;">{current.customCss}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {error && (
+      <div class="card" style="margin-top:16px;border-color:var(--admin-danger);color:var(--admin-danger);">{error}</div>
+    )}
+
+    <div style="margin-top:24px;display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:16px;">
+      <button type="submit" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zm-7-9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 5v4h9V5H6z"/></svg>
+        変更を保存
+      </button>
+    </div>
+  </form>
+</AdminLayout>
