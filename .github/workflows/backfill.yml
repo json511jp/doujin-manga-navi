@@ -18,3 +18,5 @@ jobs:
           DMM_AFFILIATE_ID: ${{ secrets.DMM_AFFILIATE_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DMM_SERVICE: ${{ secrets.DMM_SERVICE }}
+          DMM_FLOOR: ${{ secrets.DMM_FLOOR }}
