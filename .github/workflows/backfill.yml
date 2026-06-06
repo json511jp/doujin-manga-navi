@@ -3,7 +3,7 @@ name: Backfill
 on:
   workflow_dispatch:
   schedule:
-    - cron: '26 3 * * *'
+    - cron: '10 15 * * *'
 
 jobs:
   backfill:
@@ -22,3 +22,26 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DMM_SERVICE: ${{ secrets.DMM_SERVICE }}
           DMM_FLOOR: ${{ secrets.DMM_FLOOR }}
+
+  deploy:
+    needs: backfill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci
+        working-directory: astro
+      - name: Build
+        run: npm run build
+        working-directory: astro
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Deploy to Cloudflare
+        run: npx wrangler deploy --config dist/server/wrangler.json
+        working-directory: astro
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
