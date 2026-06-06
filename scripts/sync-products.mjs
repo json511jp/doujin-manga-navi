@@ -11,7 +11,7 @@ const JOB_NAME = 'sync-products';
 // GTE_DATE が指定されていなければ昨日の日付を使用
 const gteDate = process.env.GTE_DATE || (() => {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate());
   return d.toISOString().split('T')[0];
 })();
 
