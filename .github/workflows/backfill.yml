@@ -3,7 +3,7 @@ name: Backfill
 on:
   workflow_dispatch:
   schedule:
-    - cron: '49 3 * * *'
+    - cron: '10 15 * * *'
 
 jobs:
   backfill:
