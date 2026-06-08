@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from './database.types';
+import type { Database, Json } from './database.types';
 
 // サーバーサイド専用（service_role key）— クライアントに漏れないこと
 let _adminClient: ReturnType<typeof createClient<Database>> | null = null;
@@ -34,6 +34,6 @@ export async function getAdminSetting<T>(key: string): Promise<T | null> {
 }
 
 export async function setAdminSetting(key: string, value: unknown): Promise<void> {
-  const { error } = await getAdminClient().from('admin_settings').upsert({ key, value });
+  const { error } = await getAdminClient().from('admin_settings').upsert({ key, value: value as Json });
   if (error) throw error;
 }

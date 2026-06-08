@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="お問い合わせ">
+  <div style="max-width:600px;margin:0 auto;padding:4rem 2rem;">
+    <h1 style="font-size:1.8rem;margin-bottom:1rem;">お問い合わせ</h1>
+    <p style="color:#888;margin-bottom:2rem;">ご意見・ご要望などお気軽にどうぞ。</p>
+
+    <form action="https://formspree.io/f/mojboeqq" method="POST">
+      <div style="margin-bottom:1.2rem;">
+        <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;">お名前</label>
+        <input type="text" name="name" required
+          style="width:100%;padding:0.7rem;background:#1a1a1a;border:1px solid #333;color:#fff;font-size:0.9rem;">
+      </div>
+      <div style="margin-bottom:1.2rem;">
+        <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;">メールアドレス</label>
+        <input type="email" name="email" required
+          style="width:100%;padding:0.7rem;background:#1a1a1a;border:1px solid #333;color:#fff;font-size:0.9rem;">
+      </div>
+      <div style="margin-bottom:1.2rem;">
+        <label style="display:block;margin-bottom:0.4rem;font-size:0.85rem;">メッセージ</label>
+        <textarea name="message" required rows="6"
+          style="width:100%;padding:0.7rem;background:#1a1a1a;border:1px solid #333;color:#fff;font-size:0.9rem;resize:vertical;"></textarea>
+      </div>
+      <button type="submit"
+        style="background:#d4a843;color:#000;border:none;padding:0.8rem 2rem;font-size:0.9rem;cursor:pointer;width:100%;">
+        送信する
+      </button>
+    </form>
+  </div>
+</BaseLayout>

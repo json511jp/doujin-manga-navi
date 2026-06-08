@@ -3,7 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import BottomNav from '../../components/BottomNav.astro';
 import { supabase } from '../../lib/supabase';
-import { siteConfig } from '../../../../site.config.js';
+const s = Astro.locals.siteSettings;
 
 // 共演回数の多い関係を取得（上位300件に絞る）
 let relationsRaw: any[] | null = null;
@@ -43,8 +43,8 @@ const graphData = {
 ---
 
 <BaseLayout
-  title={`女優相関図 — 共演ネットワーク | ${siteConfig.siteName}`}
-  description={`${siteConfig.siteName}の女優${nodes.length}人の共演ネットワークを星座図スタイルで可視化。`}
+  title={`女優相関図 — 共演ネットワーク | ${s.siteName}`}
+  description={`${s.siteName}の女優${nodes.length}人の共演ネットワークを星座図スタイルで可視化。`}
   noindex={true}
 >
   <style>

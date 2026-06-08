@@ -3,7 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import BottomNav from '../../components/BottomNav.astro';
 import { supabase } from '../../lib/supabase';
-import { siteConfig } from '../../../../site.config.js';
+const s = Astro.locals.siteSettings;
 
 const { data: moodsRaw } = await supabase
   .from('moods')
@@ -29,7 +29,7 @@ const moodGradient: Record<string, string> = {
 ---
 
 <BaseLayout
-  title={`気分で探す — 没入型スクロール | ${siteConfig.siteName}`}
+  title={`気分で探す — 没入型スクロール | ${s.siteName}`}
   description={`今の気分に合った動画をフルスクリーンスクロールで探す。ムードを選んでお気に入りの作品を見つけよう。`}
   noindex={true}
 >

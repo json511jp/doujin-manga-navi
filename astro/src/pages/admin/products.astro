@@ -130,7 +130,7 @@ const totalPages = Math.ceil((count ?? 0) / PER_PAGE);
 </style>
 
 <script>
-  document.querySelectorAll('.toggle-btn').forEach(btn => {
+  document.querySelectorAll<HTMLElement>('.toggle-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id    = btn.dataset.id;
       const field = btn.dataset.field;

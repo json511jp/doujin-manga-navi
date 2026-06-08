@@ -35,12 +35,14 @@ export interface Database {
           director_id: string | null;
           director_name: string | null;
           is_active: boolean;
+          is_featured: boolean;
           last_seen_at: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: Omit<Database['public']['Tables']['products']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['products']['Insert']>;
+        Relationships: [];
       };
       actresses: {
         Row: {
@@ -66,6 +68,7 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['actresses']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['actresses']['Insert']>;
+        Relationships: [];
       };
       genres: {
         Row: {
@@ -76,6 +79,7 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['genres']['Row'], 'id'>;
         Update: Partial<Database['public']['Tables']['genres']['Insert']>;
+        Relationships: [];
       };
       moods: {
         Row: {
@@ -87,16 +91,19 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['moods']['Row'], 'id'>;
         Update: Partial<Database['public']['Tables']['moods']['Insert']>;
+        Relationships: [];
       };
       product_actresses: {
         Row: { product_id: string; actress_id: string };
         Insert: Database['public']['Tables']['product_actresses']['Row'];
         Update: Partial<Database['public']['Tables']['product_actresses']['Row']>;
+        Relationships: [];
       };
       product_genres: {
         Row: { product_id: string; genre_id: string };
         Insert: Database['public']['Tables']['product_genres']['Row'];
         Update: Partial<Database['public']['Tables']['product_genres']['Row']>;
+        Relationships: [];
       };
       actress_relations: {
         Row: {
@@ -107,6 +114,7 @@ export interface Database {
         };
         Insert: Database['public']['Tables']['actress_relations']['Row'];
         Update: Partial<Database['public']['Tables']['actress_relations']['Row']>;
+        Relationships: [];
       };
       rankings: {
         Row: {
@@ -118,7 +126,81 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['rankings']['Row'], 'id' | 'recorded_at'>;
         Update: Partial<Database['public']['Tables']['rankings']['Insert']>;
+        Relationships: [];
+      };
+      likes: {
+        Row: {
+          id: string;
+          target_type: 'product' | 'actress';
+          target_id: string;
+          visitor_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          target_type: 'product' | 'actress';
+          target_id: string;
+          visitor_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          target_type?: 'product' | 'actress';
+          target_id?: string;
+          visitor_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      cron_logs: {
+        Row: {
+          id: string;
+          job_name: string;
+          status: 'success' | 'error';
+          error_message: string | null;
+          meta: Json | null;
+          executed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          job_name: string;
+          status: 'success' | 'error';
+          error_message?: string | null;
+          meta?: Json | null;
+          executed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          job_name?: string;
+          status?: 'success' | 'error';
+          error_message?: string | null;
+          meta?: Json | null;
+          executed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      admin_settings: {
+        Row: {
+          key: string;
+          value: Json;
+          updated_at: string | null;
+        };
+        Insert: {
+          key: string;
+          value: Json;
+          updated_at?: string | null;
+        };
+        Update: {
+          key?: string;
+          value?: Json;
+          updated_at?: string | null;
+        };
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }

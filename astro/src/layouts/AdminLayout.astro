@@ -1,6 +1,4 @@
 ---
-import { siteConfig } from '../../../site.config.js';
-
 interface Props {
   title: string;
   activeNav?: string;
@@ -8,6 +6,7 @@ interface Props {
 
 const { title, activeNav } = Astro.props;
 const user = Astro.locals.adminUser;
+const siteName = Astro.locals.siteSettings?.siteName ?? 'Admin';
 
 const navItems = [
   { id: 'dashboard', label: 'ダッシュボード', href: '/admin',
@@ -20,6 +19,8 @@ const navItems = [
     icon: '<path d="M21 7l-9-4-9 4v10l9 4 9-4V7zM12 5.2L18.5 8 12 10.8 5.5 8 12 5.2zM4 9.5l7 3v8l-7-3v-8zm9 11v-8l7-3v8l-7 3z"/>' },
   { id: 'moods',     label: 'ムード管理',       href: '/admin/moods',
     icon: '<path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z"/>' },
+  { id: 'jobs',      label: 'ジョブ管理',       href: '/admin/jobs',
+    icon: '<path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.72L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.82 2 12c0 3.76 2.09 7.07 5.22 8.78L6 22h5V2.05z"/>' },
   { id: 'logs',      label: '同期ログ',         href: '/admin/logs',
     icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>' },
 ];
@@ -31,7 +32,7 @@ const navItems = [
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>{title} — {siteConfig.siteName} Admin</title>
+  <title>{title} — {siteName} Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" />
@@ -264,9 +265,9 @@ const navItems = [
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-brand">
-        <div class="sidebar-brand-mark">{siteConfig.siteName?.charAt(0) ?? 'A'}</div>
+        <div class="sidebar-brand-mark">{siteName.charAt(0) || 'A'}</div>
         <div class="sidebar-brand-text">
-          <div>{siteConfig.siteName}</div>
+          <div>{siteName}</div>
           <div class="sidebar-site">Admin Console</div>
         </div>
       </div>

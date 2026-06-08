@@ -2,11 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import BottomNav from '../components/BottomNav.astro';
-import { siteConfig } from '../../../site.config.js';
+const s = Astro.locals.siteSettings;
 ---
 
 <BaseLayout
-  title={`ページが見つかりません | ${siteConfig.siteName}`}
+  title={`ページが見つかりません | ${s.siteName}`}
   description="お探しのページは見つかりませんでした。"
   noindex={true}
 >

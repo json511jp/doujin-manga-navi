@@ -1,0 +1,232 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getAdminClient } from '../../lib/adminClient';
+
+const hasGitHub = !!(import.meta.env.GITHUB_TOKEN && import.meta.env.GITHUB_REPO);
+
+const client = getAdminClient();
+const { data: recentLogs } = await client
+  .from('cron_logs')
+  .select('*')
+  .order('executed_at', { ascending: false })
+  .limit(20);
+
+function timeAgo(ts: string) {
+  const diff = Date.now() - new Date(ts).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'たった今';
+  if (m < 60) return `${m}分前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}時間前`;
+  return `${Math.floor(h / 24)}日前`;
+}
+
+const JOBS = [
+  {
+    id:       'sync-products',
+    workflow: 'sync-products.yml',
+    label:    '商品同期',
+    desc:     'DMM API から最新商品を取得して Supabase に同期',
+    schedule: '毎日 02:00 JST',
+    inputs: [
+      { name: 'gte_date', label: '取得開始日（任意）', placeholder: '例: 2025-01-01', required: false },
+    ],
+  },
+  {
+    id:       'sync-actresses',
+    workflow: 'sync-actresses.yml',
+    label:    '女優同期',
+    desc:     '女優データを DMM API から取得して同期',
+    schedule: '毎日 02:30 JST',
+    inputs:   [],
+  },
+  {
+    id:       'sync-rankings',
+    workflow: 'sync-rankings.yml',
+    label:    'ランキング同期',
+    desc:     'ランキングデータを更新',
+    schedule: '毎日 03:00 JST',
+    inputs:   [],
+  },
+  {
+    id:       'generate-descriptions',
+    workflow: 'generate-descriptions.yml',
+    label:    'AI説明文生成',
+    desc:     '説明文が未設定の商品に AI で説明文を生成',
+    schedule: '毎日 04:00 JST',
+    inputs:   [],
+  },
+  {
+    id:       'backfill',
+    workflow: 'backfill.yml',
+    label:    'バックフィル',
+    desc:     '既存データのバックフィル処理',
+    schedule: '手動のみ',
+    inputs: [
+      { name: 'limit', label: '取得件数', placeholder: '100', required: false },
+    ],
+  },
+] as const;
+---
+
+<AdminLayout title="ジョブ管理" activeNav="jobs">
+  {!hasGitHub && (
+    <div class="card" style="margin-bottom:24px;border-color:var(--admin-warning,#f59e0b);background:rgba(245,158,11,0.06);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#f59e0b"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#f59e0b;">GITHUB_TOKEN / GITHUB_REPO が未設定です</div>
+          <div style="font-size:12px;color:var(--admin-text-2);margin-top:2px;">
+            Cloudflare Pages の環境変数に <code style="background:var(--admin-surface-2);padding:1px 5px;border-radius:3px;">GITHUB_TOKEN</code>（<code style="background:var(--admin-surface-2);padding:1px 5px;border-radius:3px;">workflow</code> スコープ）と <code style="background:var(--admin-surface-2);padding:1px 5px;border-radius:3px;">GITHUB_REPO</code>（例: <code style="background:var(--admin-surface-2);padding:1px 5px;border-radius:3px;">owner/repo</code>）を追加してください。
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  <p style="color:var(--admin-text-2);font-size:13px;margin-bottom:24px;">
+    GitHub Actions のワークフローを手動実行します。実行後は「同期ログ」ページで結果を確認できます。
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:32px;">
+    {JOBS.map(job => (
+      <div class="card" id={`card-${job.id}`}>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div class="card-title" style="margin-bottom:4px;">{job.label}</div>
+            <div style="font-size:11px;color:var(--admin-muted);">🕐 {job.schedule}</div>
+          </div>
+          <span class="badge" id={`status-${job.id}`}></span>
+        </div>
+        <p style="font-size:12px;color:var(--admin-text-2);margin-bottom:14px;line-height:1.6;">{job.desc}</p>
+
+        {job.inputs.length > 0 && (
+          <div style="margin-bottom:12px;display:flex;flex-direction:column;gap:8px;">
+            {job.inputs.map(inp => (
+              <div>
+                <label style="display:block;font-size:11px;color:var(--admin-text-2);margin-bottom:4px;">{inp.label}</label>
+                <input
+                  class="form-input"
+                  id={`input-${job.id}-${inp.name}`}
+                  data-name={inp.name}
+                  placeholder={inp.placeholder}
+                  style="font-size:13px;padding:8px 10px;"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          class="btn btn-primary trigger-btn"
+          style="width:100%;"
+          data-workflow={job.workflow}
+          data-job={job.id}
+          disabled={!hasGitHub}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          実行
+        </button>
+      </div>
+    ))}
+  </div>
+
+  <!-- 最近のログ -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--admin-border);display:flex;justify-content:space-between;align-items:center;">
+      <div class="card-title" style="margin:0;">最近のログ（20件）</div>
+      <a href="/admin/logs" style="font-size:12px;color:var(--admin-accent);text-decoration:none;">すべて見る →</a>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ジョブ名</th>
+          <th style="text-align:center;width:100px;">状態</th>
+          <th style="text-align:right;width:120px;">実行日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(recentLogs ?? []).length === 0 ? (
+          <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--admin-muted);">ログがありません</td></tr>
+        ) : (recentLogs ?? []).map(log => (
+          <tr>
+            <td style="font-weight:500;">{log.job_name}</td>
+            <td style="text-align:center;">
+              {log.status === 'success'
+                ? <span class="badge badge-success">✓ 成功</span>
+                : <span class="badge badge-danger">✗ エラー</span>}
+            </td>
+            <td style="text-align:right;color:var(--admin-text-2);font-size:12px;white-space:nowrap;">
+              {timeAgo(log.executed_at!)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>
+
+<script>
+  const STATUS_CLEAR_MS = 30_000;
+  const PLAY_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const SPIN_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="animation:spin 1s linear infinite"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>';
+
+  function setStatus(el: HTMLElement | null, text: string, klass: string) {
+    if (!el) return;
+    el.textContent = text;
+    el.className = klass;
+    if (text) {
+      window.setTimeout(() => {
+        if (el.textContent === text) { el.textContent = ''; el.className = 'badge'; }
+      }, STATUS_CLEAR_MS);
+    }
+  }
+
+  async function triggerJob(btn: HTMLButtonElement) {
+    if (btn.disabled) return;
+    const jobId    = btn.dataset.job ?? '';
+    const workflow = btn.dataset.workflow ?? '';
+    const statusEl = document.getElementById(`status-${jobId}`);
+
+    const inputs: Record<string, string> = {};
+    document.querySelectorAll<HTMLInputElement>(`[id^="input-${jobId}-"]`).forEach((input) => {
+      const name = input.dataset.name;
+      if (name && input.value.trim()) inputs[name] = input.value.trim();
+    });
+
+    btn.disabled = true;
+    btn.innerHTML = `${SPIN_ICON} 実行中…`;
+    setStatus(statusEl, '', 'badge');
+
+    try {
+      const res = await fetch('/api/admin/trigger-workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow, inputs }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setStatus(statusEl, '✓ キュー済み', 'badge badge-success');
+        (window as any).showToast?.(`${workflow} を実行キューに追加しました`);
+      } else {
+        setStatus(statusEl, '✗ エラー', 'badge badge-danger');
+        (window as any).showToast?.(data.error ?? 'エラーが発生しました', 'error');
+      }
+    } catch {
+      setStatus(statusEl, '✗ エラー', 'badge badge-danger');
+      (window as any).showToast?.('ネットワークエラーが発生しました', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `${PLAY_ICON} 実行`;
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.trigger-btn').forEach(btn => {
+    btn.addEventListener('click', () => triggerJob(btn));
+  });
+</script>
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>

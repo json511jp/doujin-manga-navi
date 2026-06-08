@@ -3,8 +3,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import BottomNav from '../components/BottomNav.astro';
 import ProductCard from '../components/ProductCard.astro';
-import { siteConfig } from '../../../site.config.js';
 import { supabase } from '../lib/supabase';
+const s = Astro.locals.siteSettings;
 
 // Fetch moods
 const { data: moods } = await supabase
@@ -65,7 +65,7 @@ const rankBadgeColor = (pos: number) => {
 };
 ---
 
-<BaseLayout title={`${siteConfig.tagline} | ${siteConfig.siteName}`}>
+<BaseLayout title={`${s.tagline} | ${s.siteName}`}>
   <Header />
 
   <main style="max-width:1024px;margin:0 auto;padding-bottom:80px;">

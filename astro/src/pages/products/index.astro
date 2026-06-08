@@ -3,8 +3,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import BottomNav from '../../components/BottomNav.astro';
 import ProductCard from '../../components/ProductCard.astro';
-import { siteConfig } from '../../../../site.config.js';
 import { supabase } from '../../lib/supabase';
+const s = Astro.locals.siteSettings;
 
 const PER_PAGE = 48;
 const page = Math.max(1, Number(Astro.url.searchParams.get('page') ?? '1'));
@@ -43,9 +43,9 @@ const sortLabel = sort === 'review' ? 'レビュー評価順' : '新着順';
 ---
 
 <BaseLayout
-  title={`全作品一覧${page > 1 ? ` (${page}ページ目)` : ''} | ${siteConfig.siteName}`}
-  description={`${siteConfig.siteName}の全作品${totalCount}本を${sortLabel}で掲載。`}
-  canonical={`${siteConfig.siteUrl}/products${q ? `?q=${encodeURIComponent(q)}` : ''}`}
+  title={`全作品一覧${page > 1 ? ` (${page}ページ目)` : ''} | ${s.siteName}`}
+  description={`${s.siteName}の全作品${totalCount}本を${sortLabel}で掲載。`}
+  canonical={`${s.siteUrl}/products${q ? `?q=${encodeURIComponent(q)}` : ''}`}
   noindex={page > 1}
 >
   <Header />

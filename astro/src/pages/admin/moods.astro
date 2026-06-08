@@ -18,7 +18,7 @@ if (Astro.request.method === 'POST') {
     const name     = String(form.get('name'));
     const slug     = String(form.get('slug'));
     const genreIds = String(form.get('genre_ids')).split(',').map(s => s.trim()).filter(Boolean);
-    await client.from('moods').insert({ name, slug, genre_ids: genreIds });
+    await client.from('moods').insert({ name, slug, genre_ids: genreIds, description: null });
   } else if (action === 'delete') {
     const id = String(form.get('id'));
     await client.from('moods').delete().eq('id', id);

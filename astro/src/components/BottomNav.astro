@@ -1,17 +1,16 @@
 ---
-import { siteConfig } from '../../../site.config.js';
-
 interface Props {
   active?: 'top' | 'explore' | 'ranking' | 'actress' | 'graph';
 }
 const { active } = Astro.props;
+const showActresses = Astro.locals.siteSettings.features.actresses;
 
 const allItems = [
-  { key: 'top',     href: '/',                 label: 'TOP',      icon: 'home',   show: true },
+  { key: 'top',     href: '/',                 label: 'TOP',      icon: 'home',    show: true },
   { key: 'explore', href: '/explore',           label: '探す',     icon: 'compass', show: true },
-  { key: 'ranking', href: '/ranking/monthly',   label: 'ランキング', icon: 'chart', show: true },
-  { key: 'actress', href: '/actress',           label: '女優',     icon: 'person', show: siteConfig.features.actresses },
-  { key: 'graph',   href: '/graph',             label: '相関図',   icon: 'graph',  show: siteConfig.features.actresses },
+  { key: 'ranking', href: '/ranking/monthly',   label: 'ランキング', icon: 'chart',  show: true },
+  { key: 'actress', href: '/actress',           label: '女優',     icon: 'person',  show: showActresses },
+  { key: 'graph',   href: '/graph',             label: '相関図',   icon: 'graph',   show: showActresses },
 ] as const;
 
 const items = allItems.filter(i => i.show);

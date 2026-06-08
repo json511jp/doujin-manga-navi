@@ -1,13 +1,10 @@
 ---
-import { siteConfig } from '../../../site.config.js';
-
 interface Props {
   title?: string;
   showBack?: boolean;
 }
 const { title, showBack = false } = Astro.props;
-
-const accentColor = siteConfig.colors?.accent ?? '#d4a843';
+const siteName = Astro.locals.siteSettings.siteName;
 ---
 
 <header style="position:sticky;top:0;height:56px;background:rgba(10,10,10,0.92);border-bottom:1px solid #2a2a2a;z-index:100;backdrop-filter:blur(8px);">
@@ -18,8 +15,8 @@ const accentColor = siteConfig.colors?.accent ?? '#d4a843';
     }
     {title
       ? <span style="font-size:15px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{title}</span>
-      : <a href="/" style={`text-decoration:none;flex:1;font-size:16px;font-weight:700;color:${accentColor};letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`} aria-label={`${siteConfig.siteName} トップへ`}>
-          {siteConfig.siteName}
+      : <a href="/" style="text-decoration:none;flex:1;font-size:16px;font-weight:700;color:var(--accent,#d4a843);letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" aria-label={`${siteName} トップへ`}>
+          {siteName}
         </a>
     }
     <button

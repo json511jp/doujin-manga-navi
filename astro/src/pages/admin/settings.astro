@@ -9,10 +9,29 @@ type SiteSettings = {
   siteUrl: string;
   tagline: string;
   contactEmail: string;
+  // DMM API
+  dmmSite: string;
+  dmmService: string;
+  dmmFloor: string;
   keyword: string;
+  // ニッチランキング
   nicheSlug: string;
   nicheLabel: string;
   nicheGenreIds: string;
+  // CTA
+  ctaLabel: string;
+  // 表示機能フラグ
+  featActresses: boolean;
+  featSampleMovie: boolean;
+  featTrialReading: boolean;
+  featDuration: boolean;
+  featDirector: boolean;
+  featMaker: boolean;
+  featVrBadge: boolean;
+  // アフィリエイト
+  affiliateProgramName: string;
+  affiliateAgeRestricted: boolean;
+  // カスタムCSS
   customCss: string;
 };
 
@@ -20,46 +39,73 @@ let error = '';
 
 const savedSettings = await getAdminSetting<SiteSettings>('site_settings');
 const defaults: SiteSettings = {
-  siteName:      siteConfig.siteName,
-  siteDescription: siteConfig.siteDescription,
-  siteUrl:       siteConfig.siteUrl,
-  tagline:       siteConfig.tagline,
-  contactEmail:  siteConfig.contactEmail,
-  keyword:       siteConfig.dmm.keyword,
-  nicheSlug:     siteConfig.nicheRanking.slug,
-  nicheLabel:    siteConfig.nicheRanking.label,
-  nicheGenreIds: siteConfig.nicheRanking.genreIds.join(', '),
-  customCss:     '',
+  siteName:             siteConfig.siteName,
+  siteDescription:      siteConfig.siteDescription,
+  siteUrl:              siteConfig.siteUrl,
+  tagline:              siteConfig.tagline,
+  contactEmail:         siteConfig.contactEmail,
+  dmmSite:              siteConfig.dmm.site,
+  dmmService:           siteConfig.dmm.service,
+  dmmFloor:             siteConfig.dmm.floor,
+  keyword:              siteConfig.dmm.keyword,
+  nicheSlug:            siteConfig.nicheRanking.slug,
+  nicheLabel:           siteConfig.nicheRanking.label,
+  nicheGenreIds:        siteConfig.nicheRanking.genreIds.join(', '),
+  ctaLabel:             siteConfig.ctaLabel,
+  featActresses:        siteConfig.features.actresses,
+  featSampleMovie:      siteConfig.features.sampleMovie,
+  featTrialReading:     siteConfig.features.trialReading,
+  featDuration:         siteConfig.features.duration,
+  featDirector:         siteConfig.features.director,
+  featMaker:            siteConfig.features.maker,
+  featVrBadge:          siteConfig.features.vrBadge,
+  affiliateProgramName: siteConfig.affiliate.programName,
+  affiliateAgeRestricted: siteConfig.affiliate.ageRestricted,
+  customCss:            '',
 };
-const current: SiteSettings = { ...defaults, ...savedSettings };
+let current: SiteSettings = { ...defaults, ...savedSettings };
 
 if (Astro.request.method === 'POST') {
+  let parsed: SiteSettings | null = null;
   try {
     const form = await Astro.request.formData();
-    const settings: SiteSettings = {
-      siteName:        String(form.get('siteName') ?? ''),
-      siteDescription: String(form.get('siteDescription') ?? ''),
-      siteUrl:         String(form.get('siteUrl') ?? ''),
-      tagline:         String(form.get('tagline') ?? ''),
-      contactEmail:    String(form.get('contactEmail') ?? ''),
-      keyword:         String(form.get('keyword') ?? ''),
-      nicheSlug:       String(form.get('nicheSlug') ?? ''),
-      nicheLabel:      String(form.get('nicheLabel') ?? ''),
-      nicheGenreIds:   String(form.get('nicheGenreIds') ?? ''),
-      customCss:       String(form.get('customCss') ?? ''),
+    parsed = {
+      siteName:               String(form.get('siteName') ?? ''),
+      siteDescription:        String(form.get('siteDescription') ?? ''),
+      siteUrl:                String(form.get('siteUrl') ?? ''),
+      tagline:                String(form.get('tagline') ?? ''),
+      contactEmail:           String(form.get('contactEmail') ?? ''),
+      dmmSite:                String(form.get('dmmSite') ?? 'FANZA'),
+      dmmService:             String(form.get('dmmService') ?? ''),
+      dmmFloor:               String(form.get('dmmFloor') ?? ''),
+      keyword:                String(form.get('keyword') ?? ''),
+      nicheSlug:              String(form.get('nicheSlug') ?? ''),
+      nicheLabel:             String(form.get('nicheLabel') ?? ''),
+      nicheGenreIds:          String(form.get('nicheGenreIds') ?? ''),
+      ctaLabel:               String(form.get('ctaLabel') ?? ''),
+      featActresses:          form.get('featActresses') === 'on',
+      featSampleMovie:        form.get('featSampleMovie') === 'on',
+      featTrialReading:       form.get('featTrialReading') === 'on',
+      featDuration:           form.get('featDuration') === 'on',
+      featDirector:           form.get('featDirector') === 'on',
+      featMaker:              form.get('featMaker') === 'on',
+      featVrBadge:            form.get('featVrBadge') === 'on',
+      affiliateProgramName:   String(form.get('affiliateProgramName') ?? ''),
+      affiliateAgeRestricted: form.get('affiliateAgeRestricted') === 'on',
+      customCss:              String(form.get('customCss') ?? ''),
     };
-    await setAdminSetting('site_settings', settings);
-    await setAdminSetting('custom_css', settings.customCss);
+    await setAdminSetting('site_settings', parsed);
     return Astro.redirect('/admin/settings?saved=1');
   } catch (e) {
     error = String(e);
+    if (parsed) current = parsed;  // パース成功後の保存失敗時はユーザー入力を保持
   }
 }
 ---
 
 <AdminLayout title="サイト設定" activeNav="settings">
   <p style="color:var(--admin-text-2);font-size:13px;margin-bottom:24px;max-width:680px;">
-    DB に保存され、公開サイトに即時反映されます。<code style="background:var(--admin-surface);padding:2px 6px;border-radius:4px;font-size:11px;">site.config.js</code> は上書きされません（GitHub Actions / 同期スクリプトはそちらを参照）。
+    DB に保存され、公開サイトに最大60秒で反映されます（キャッシュ TTL）。<code style="background:var(--admin-surface);padding:2px 6px;border-radius:4px;font-size:11px;">site.config.js</code> は上書きされません（GitHub Actions / 同期スクリプトはそちらを参照）。
   </p>
 
   <form method="POST">
@@ -91,15 +137,83 @@ if (Astro.request.method === 'POST') {
 
         <div class="card">
           <div class="card-title">DMM API 設定</div>
+          <div class="form-group">
+            <label class="form-label">サイト (site)</label>
+            <select class="form-input" name="dmmSite">
+              <option value="FANZA" selected={current.dmmSite === 'FANZA'}>FANZA</option>
+              <option value="DMM.co.jp" selected={current.dmmSite === 'DMM.co.jp'}>DMM.co.jp</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">サービス (service)</label>
+            <input class="form-input" name="dmmService" value={current.dmmService} placeholder="例: digital, mono, monthly" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">フロア (floor)</label>
+            <input class="form-input" name="dmmFloor" value={current.dmmFloor} placeholder="例: videoa, anime, doujin, ebook" />
+            <p style="font-size:11px;color:var(--admin-muted);margin-top:6px;">同期スクリプトの取得対象フロア</p>
+          </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">検索キーワード</label>
             <input class="form-input" name="keyword" value={current.keyword} />
             <p style="font-size:11px;color:var(--admin-muted);margin-top:6px;">空白で全件取得 / 例: 人妻, NTR, 巨乳</p>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-title">CTA 設定</div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">購入ボタンのテキスト</label>
+            <input class="form-input" name="ctaLabel" value={current.ctaLabel} placeholder="例: FANZAで見る, DVDを購入" />
+          </div>
+        </div>
       </div>
 
       <div>
+        <div class="card">
+          <div class="card-title">表示機能フラグ</div>
+          <p style="font-size:11px;color:var(--admin-muted);margin-bottom:14px;">フロアに合わせてオン／オフを切り替えてください。</p>
+          {([
+            ['featActresses',    '女優情報・女優ページを表示'],
+            ['featSampleMovie',  'サンプル動画プレイヤーを表示'],
+            ['featTrialReading', '電子書籍の立ち読みリンクを表示'],
+            ['featDuration',     '収録時間を表示'],
+            ['featDirector',     '監督情報を表示'],
+            ['featMaker',        'メーカー・レーベル・シリーズを表示'],
+            ['featVrBadge',      'VRコンテンツバッジを表示'],
+          ] as [keyof typeof current, string][]).map(([key, label]) => (
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--admin-border);cursor:pointer;">
+              <input
+                type="checkbox"
+                name={key}
+                checked={current[key] as boolean}
+                style="width:16px;height:16px;accent-color:var(--admin-accent);flex-shrink:0;"
+              />
+              <span style="font-size:13px;color:var(--admin-text);">{label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div class="card">
+          <div class="card-title">アフィリエイト設定</div>
+          <div class="form-group">
+            <label class="form-label">アフィリエイトプログラム名</label>
+            <input class="form-input" name="affiliateProgramName" value={current.affiliateProgramName} placeholder="例: FANZA（DMM）のアフィリエイトプログラム" />
+            <p style="font-size:11px;color:var(--admin-muted);margin-top:6px;">フッターのアフィリエイト表記に使用</p>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+              <input
+                type="checkbox"
+                name="affiliateAgeRestricted"
+                checked={current.affiliateAgeRestricted}
+                style="width:16px;height:16px;accent-color:var(--admin-accent);flex-shrink:0;"
+              />
+              <span class="form-label" style="margin-bottom:0;">18歳以上対象の表記を表示</span>
+            </label>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-title">ニッチランキング</div>
           <div class="form-group">
