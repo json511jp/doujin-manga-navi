@@ -15,16 +15,15 @@ export const siteConfig = {
   // -------------------------------------------------------
 
   /** サイト名（ヘッダー・タイトルタグに使用） */
-  siteName: 'DOUJIN MANGA NAVI',
+  siteName: 'DOUJIN MANGA NAVI | 無料同人・成人漫画まとめ',
 
   /** サイトの説明文（meta description のデフォルト） */
-  siteDescription: '成人向け同人・漫画の紹介サイト',
-
+  siteDescription: '無料同人・成人漫画を毎日更新で紹介。妊娠・孕ませ・触手・巨乳・中出し・熟女・人妻・異種交尾・魔法少女・NTR・催眠など人気ジャンルの新作を毎日チェックできます。',
   /** 本番ドメイン（sitemap・canonical URL に使用） */
   siteUrl: 'https://doujin-manga-navi.json511jp.workers.dev',
 
   /** サイトのキャッチコピー（TOPページに表示） */
-  tagline: '話題の成人向け同人・漫画をまとめて紹介',
+  tagline: '無料同人・成人漫画を毎日更新で無料紹介',
 
   /** お問い合わせメールアドレス（フッターに表示） */
   contactEmail: 'json511jp@gmail.com',
