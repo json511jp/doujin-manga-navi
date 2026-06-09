@@ -6,7 +6,7 @@ if (Astro.response) {
   Astro.response.headers.set('Content-Type', 'application/xml; charset=utf-8');
 }
 
-const SITE = 'https://ntr-douga.com';
+const SITE = 'https://doujin-manga-navi.json511jp.workers.dev';
 const today = new Date().toISOString().split('T')[0];
 
 function urlEntry(path: string, lastmod: string | null | undefined, changefreq = 'weekly', priority = '0.5') {
